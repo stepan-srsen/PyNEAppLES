@@ -1,7 +1,9 @@
 ## Python Nuclear Ensemble Approach for Linear Electronic Spectroscopy (PyNEAppLES)
 
 ### About
-This repository contains several tools for electronic spectra simulations using the nuclear ensemble approach/method (NEA/NEM). Look into references [1] and [2] for the general description of the NEA. The calculation of error bars is described in ref. [2]. This repository also includes a program for so-called representative sampling (see ref. [3]) allowing to select a small number of geometries representing the initial state density by employing a fast exploratory method. Representative sampling can be used to speed up spectra simulations by reducing the number of expensive high-level calculations.
+This repository contains several tools for electronic spectra simulations using the nuclear ensemble approach/method (NEA/NEM). Look into references [1] and [2] for the general description of the NEA. The main program has options for the automatic setting of the broadening parameter (the bandwidth), decomposition of the spectrum into electronic states, calculation of error bars (see ref. [2]), etc.
+
+This repository also includes a program for so-called representative sampling (see ref. [3]) allowing to select a small number of geometries representing the initial-state density by employing a fast exploratory ab initio method. Representative sampling can be used to speed up spectra simulations by reducing the number of expensive high-level calculations.
 
 ### Tools description
 
