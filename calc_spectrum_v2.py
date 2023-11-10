@@ -50,7 +50,7 @@ def read_cmd(parser=None, parse=True):
     parser.add_argument('--mine', type=float, default=0.0,
                         help='Minimal energy of the spectrum in eV. Default = 0 for automatic setting.')
     parser.add_argument('--maxe', type=float, default=0.0,
-                        help='Maximal energy of the spectrum in eV. Default = 0 for automatic setting.')
+                        help='Maximal energy of the spectrum in eV. Default = 0 for automatic setting. -1 for the minimal energy of the highest state.')
     parser.add_argument('--notrans', action="store_true", default=False,
                         help='No transition dipole moments. Spectrum will be normalized to unity. Useful for ionizations.')
     parser.add_argument('-e', '--ebars', type=float, default=0.0,
@@ -293,7 +293,9 @@ class Spectrum:
 
         if not self.minE:
             self.minE = max(np.min(self.exc)-1.0, self.de)
-        if not self.maxE:
+        if self.maxE == -1:
+            self.maxE = np.min(self.exc[:, -1])
+        elif not self.maxE:
             self.maxE = np.max(self.exc)+1.0
         if self.verbose:
             print('minE:', self.minE, ', maxE:', self.maxE)
