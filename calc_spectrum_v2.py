@@ -48,9 +48,9 @@ def read_cmd(parser=None, parse=True):
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Activate verbose mode.')
     parser.add_argument('--mine', type=float, default=0.0,
-                        help='Minimal energy of the spectrum in eV. Default = 0.0')
+                        help='Minimal energy of the spectrum in eV. Default = 0 for automatic setting.')
     parser.add_argument('--maxe', type=float, default=0.0,
-                        help='Maximal energy of the spectrum in eV. Default = 0.0')
+                        help='Maximal energy of the spectrum in eV. Default = 0 for automatic setting.')
     parser.add_argument('--notrans', action="store_true", default=False,
                         help='No transition dipole moments. Spectrum will be normalized to unity. Useful for ionizations.')
     parser.add_argument('-e', '--ebars', type=float, default=0.0,
@@ -155,8 +155,8 @@ def silverman(samples, weights=None, robust=False):
 def cv(samples, weights=None, lowerbound=None, upperbound=None, n_jobs=-1):
     """Calculates the bandwidth by using cross validation."""
     # TODO: improve silverman's estimate by averaging over states for --onesigma
-    silverman_lcoef = 0.12
-    silverman_ucoef = 10*silverman_lcoef
+    silverman_lcoef = 0.1
+    silverman_ucoef = 1.1
     max_it = 20
     npoints = 8
 #    bound_coef = 1.3
@@ -164,8 +164,7 @@ def cv(samples, weights=None, lowerbound=None, upperbound=None, n_jobs=-1):
 #    n_splits_coef = 0.15
 #    n_repeats_coef = 0.15
 #    bound_coef = 1.005
-    # recommanded values for ratio_thr are 1e-1, 3e-2, 1e-2, each costs another iteration
-    ratio_thr = 1e-3
+    ratio_thr = 1e-2
     n_splits_coef = 0.05
 # necessity of large number of repeats becouse of unequally distributed data (weights) in folds?
     n_repeats_coef = n_splits_coef
@@ -181,8 +180,8 @@ def cv(samples, weights=None, lowerbound=None, upperbound=None, n_jobs=-1):
     for i in range(max_it):
         start_time = time.time()
         ratio = (upperbound/lowerbound)**(1/(npoints-1))
-        n_splits = min(int(round(2 + n_splits_coef/(ratio-1)))+2, samples.size)
-        n_repeats = min(int(round(1 + n_repeats_coef/(ratio-1)))+2, samples.size)
+        n_splits = min(int(round(n_splits_coef/(ratio-1)))+5, samples.size)
+        n_repeats = min(int(round(n_repeats_coef/(ratio-1)))+3, samples.size)
         print('STEP', i+1, ':', 'ratio', ratio, 'n_splits', n_splits,
               'n_repeats', n_repeats, 'lowerbound', lowerbound, 'upperbound', upperbound)
         grid = GridSearchCV(estimator(rtol=1e-3), {'bandwidth': np.geomspace(lowerbound, upperbound, num=npoints, endpoint=True)},
