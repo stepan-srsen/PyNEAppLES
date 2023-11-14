@@ -58,7 +58,7 @@ class PDFDiv:
             pdf1 /= norm1
             pdf2 /= norm2
             normalized = True
-        thr = 1e-10
+        thr = 1e-15
         if not normalized:
             thr *= norm1
         indices = pdf1>thr
@@ -148,8 +148,11 @@ class PDFDiv:
         d = np.sum(np.power(cdf1-cdf2, 2))
         return d
 
-def bandwidth(kde):
-    return 1.5*kde.silverman_factor()
+# def bandwidth(kde):
+#     # h = kde.silverman_factor()
+#     # print(h)
+#     h = 1
+#     return h
 
 class GeomReduction:
     def __init__(self, nsamples, nstates, subset, cycles, ncores, njobs, verbose, pdfcomp):
@@ -228,7 +231,7 @@ class GeomReduction:
         
         if gen_grid:
             self.n_points = 100
-            n_sigma = 0.25
+            n_sigma = 1
             
             # self.exc_min = np.zeros((self.nstates))
             # self.exc_max = np.zeros((self.nstates))
@@ -237,8 +240,8 @@ class GeomReduction:
             # self.norm = np.zeros((self.nstates))
             # self.grid = np.zeros((self.nstates, 2, self.n_points**2))
             
-            h1 = np.std(self.exc[samples].ravel())
-            h2 = np.std(self.trans[samples].ravel())
+            h1 = np.amax(np.std(self.exc[samples], axis=0))
+            h2 = np.amax(np.std(self.trans[samples], axis=0))
             self.exc_min = self.exc[samples].min() - n_sigma*h1
             self.exc_max = self.exc[samples].max() + n_sigma*h1
             self.trans_min = self.trans[samples].min() - n_sigma*h2
@@ -254,6 +257,8 @@ class GeomReduction:
                     norm = np.sum(self.weights[samples])/len(self.weights[samples])
             self.norm = dX*dY/norm
             self.grid = np.vstack([X.ravel(), Y.ravel()])
+            if self.subset == 1:
+                self.kernel = []
         
         # pdf = np.zeros((self.nstates, self.n_points**2))
         pdf = np.zeros((self.n_points**2))
@@ -274,7 +279,15 @@ class GeomReduction:
                     weights = self.weights[samples,state]
             elif sweights is not None:
                 weights = sweights
-            kernel = gaussian_kde(values, bw_method=h, weights=weights)
+            if gen_grid and self.subset == 1:
+                kernel = gaussian_kde(values, bw_method=h, weights=weights)
+                self.kernel.append(kernel)
+            elif self.subset == 1:
+                kernel = self.kernel[state]
+                kernel.dataset = values
+                norm *= self.nsamples
+            else:
+                kernel = gaussian_kde(values, bw_method=h, weights=weights)
             
             # if gen_grid:
             #     h1 = kernel.covariance[0,0]**0.5
@@ -343,7 +356,7 @@ class GeomReduction:
             samples = np.array(samples)
             # self.get_PDF(samples, plot=True)
         
-        if gen_weights:
+        if gen_weights and self.subset>1:
             weights = int(self.nsamples/self.subset + 0.5)*np.ones(samples.shape, dtype=int)
         else:
             weights = None
@@ -531,9 +544,8 @@ class GeomReduction:
     def reduce_geoms(self):
         self.origintensity = self.get_PDF(gen_grid=True)
         if self.subset == 1:
-            print("Error: 1 sample not implemented!")
-            return False
-            # self.sigmas /= (1/self.nsamples)**(1/5) # correct for dimension
+            for kernel in self.kernel:
+                kernel.set_bandwidth(bw_method=1)
 
         name = self.get_name() + '.r' + str(self.subset)
         os.mkdir(name)
