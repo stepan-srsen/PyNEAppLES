@@ -58,7 +58,7 @@ class PDFDiv:
             pdf1 /= norm1
             pdf2 /= norm2
             normalized = True
-        thr = 1e-10
+        thr = 1e-20
         if not normalized:
             thr *= norm1
         indices = pdf1>thr
@@ -167,7 +167,7 @@ class GeomReduction:
         self.njobs = njobs
         self.verbose = verbose
         self.subsamples = []
-        self.sweights = []
+        self.sweights = None
         self.origintensity = None
         self.calc_diff = getattr(PDFDiv, pdfcomp)
         self.pid = os.getpid()
@@ -218,13 +218,24 @@ class GeomReduction:
     def get_name(self):
         return 'absspec.' + self.infile.split(".")[0] + '.n' + str(self.nsamples) + '.' + self.time.strftime('%Y-%m-%d_%H-%M-%S') # + '.' + str(self.pid)
         
-    def get_PDF(self, samples=None, weights=None, h='silverman', weighted=True, gen_grid=False, plot=False):
+    def get_PDF(self, samples=None, sweights=None, h='silverman', weighted=True, gen_grid=False, plot=False):
         # TODO: compare each state separately or create common grid and intensity
         # TODO: weight states by corresponding integral intensity, i.e. sum(ene*trans**2)
         if samples is None:
             samples = slice(None)
-            gen_grid = True
             plot = True
+        
+        if gen_grid:
+            self.n_points = 50
+            n_sigma = 2
+            self.exc_min = np.zeros((self.nstates))
+            self.exc_max = np.zeros((self.nstates))
+            self.trans_min = np.zeros((self.nstates))
+            self.trans_max = np.zeros((self.nstates))
+            self.grid = np.zeros((self.nstates, 2, self.n_points**2))
+            self.norm = np.zeros((self.nstates))
+        
+        pdf = np.zeros((self.nstates, self.n_points**2))
             
         for state in range(self.nstates):
             exc = self.exc[samples,state]
@@ -232,10 +243,11 @@ class GeomReduction:
             values = np.vstack([exc, trans]) # TODO: index values directly
             # h = bandwidth
             norm = 1
+            weights = None
             if weighted:
-                if weights is not None:
-                    norm = np.sum(self.weights[samples,state]*weights)/np.sum(weights)
-                    weights = self.weights[samples,state]*weights
+                if sweights is not None:
+                    norm = np.sum(self.weights[samples,state]*sweights)/np.sum(sweights)
+                    weights = self.weights[samples,state]*sweights
                 else:
                     norm = np.sum(self.weights[samples,state])/len(self.weights[samples,state])
                     weights = self.weights[samples,state]
@@ -244,44 +256,43 @@ class GeomReduction:
             if gen_grid:
                 h1 = kernel.covariance[0,0]**0.5
                 h2 = kernel.covariance[1,1]**0.5
-                print('bandwidths', h1, h2)
-                n_sigma = 2
-                self.exc_min = exc.min() - n_sigma*h1
-                self.exc_max = exc.max() + n_sigma*h1
-                self.trans_min = trans.min() - n_sigma*h2
-                # self.trans_min = max(0, self.trans_min)
-                self.trans_max = trans.max() + n_sigma*h2
-                self.n_points = 50
-                X, Y = np.mgrid[self.exc_min : self.exc_max : self.n_points*1j, self.trans_min : self.trans_max : self.n_points*1j]
-                dX = (self.exc_max - self.exc_min)/(self.n_points-1)
-                dY = (self.trans_max - self.trans_min)/(self.n_points-1)
-                self.grid = np.vstack([X.ravel(), Y.ravel()])
+                print('bandwidths state', state, ':', h1, h2)
+                self.exc_min[state] = exc.min() - n_sigma*h1
+                self.exc_max[state] = exc.max() + n_sigma*h1
+                self.trans_min[state] = trans.min() - n_sigma*h2
+                self.trans_max[state] = trans.max() + n_sigma*h2
+                X, Y = np.mgrid[self.exc_min[state] : self.exc_max[state] : self.n_points*1j, self.trans_min[state] : self.trans_max[state] : self.n_points*1j]
+                dX = (self.exc_max[state] - self.exc_min[state])/(self.n_points-1)
+                dY = (self.trans_max[state] - self.trans_min[state])/(self.n_points-1)
                 # self.gweights = X.ravel()*Y.ravel()
-                self.norm = dX*dY
+                self.norm[state] = dX*dY/norm
+                self.grid[state] = np.vstack([X.ravel(), Y.ravel()])
                 
-            pdf = kernel(self.grid)*self.norm*norm #*self.gweights
-            # print('pdf sum', np.sum(pdf))
+            pdf[state] = kernel(self.grid[state])*self.norm[state]*norm #*self.gweights
+            # print('pdf sum', np.sum(pdf), norm)
                 
             if plot:
-                print('pdf sum', np.sum(pdf))
+                print('pdf sum', np.sum(pdf[state]))
             plot=False
             if plot:
                 import matplotlib.pyplot as plt
                 Z = np.reshape(pdf.T, (self.n_points,self.n_points))
                 plt.figure()
-                plt.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r,extent=[self.exc_min, self.exc_max, self.trans_min, self.trans_max], aspect='auto')
+                plt.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r,extent=[self.exc_min[state], self.exc_max[state], self.trans_min[state], self.trans_max[state]], aspect='auto')
                 plt.plot(exc, trans, 'k.', markersize=2)
-                plt.xlim([self.exc_min, self.exc_max])
-                plt.ylim([self.trans_min, self.trans_max])
+                plt.xlim([self.exc_min[state], self.exc_max[state]])
+                plt.ylim([self.trans_min[state], self.trans_max[state]])
                 plt.show()
             
-            return pdf
+            return pdf[state]
         
-
-    def select_subset(self, randomly=False):
+    def select_subset(self, gen_weights=True, randomly=True):
         if randomly:
             samples = np.array(random.sample(range(self.nsamples), self.subset))
         else:
+            if self.nstates > 1:
+                print('ERROR: intial subset generation with maximal distances is not supported for multiple states.')
+                return
             exc = self.exc[:,0] # only for one state
             trans = self.trans[:,0]
             weights = self.weights[:,0]
@@ -298,14 +309,18 @@ class GeomReduction:
                 samples.append(sample)
             samples = np.array(samples)
             # self.get_PDF(samples, plot=True)
-        weights = int(self.nsamples/self.subset + 0.5)*np.ones(samples.shape, dtype=int)
+        
+        if gen_weights:
+            weights = int(self.nsamples/self.subset + 0.5)*np.ones(samples.shape, dtype=int)
+        else:
+            weights = None
         return samples, weights
     
-    def swap_samples(self, samples, weights):
+    def swap_samples(self, samples, weights=None):
         index1 = random.randrange(len(samples))
-        keep_size = np.random.randint(2)
-        keep_size = 1
-        if keep_size==0:
+        change_weights = np.random.randint(2)
+        # change_weights = 1
+        if change_weights==0 or weights is None:
             rest = list(set(range(self.nsamples)) - set(samples))
             index2 = random.randrange(len(rest))
             samples[index1] = rest[index2]
@@ -354,18 +369,15 @@ class GeomReduction:
             it = itmin
             
             self.subsamples = np.copy(subsamples)
-            self.sweights = np.copy(weights)
+            if weights is not None:
+                self.sweights = np.copy(weights)
             sa_test_start = time.time()
             ti, tf = self.SA(test=True, pi=pi, pf=pf)
             sa_test_time = time.time() - sa_test_start
             tc = math.exp((math.log(tf)-math.log(ti))/self.cycles)
             temp = ti
 
-        # if self.recalc_sigma:
-        #     intensity = self.spectrum.recalc_kernel(samples=subsamples)
-        # else:
-        #     intensity = self.spectrum.recalc_spectrum(samples=subsamples)
-        intensity = self.get_PDF(samples=subsamples, weights=weights)
+        intensity = self.get_PDF(samples=subsamples, sweights=weights)
         d = self.calc_diff(self.origintensity, intensity)
         
         if not test:
@@ -383,14 +395,13 @@ class GeomReduction:
         for _ in range(self.cycles):
             for _ in range(int(round(it))):
                 subsamples_i = np.copy(subsamples)
-                weights_i = np.copy(weights)
+                weights_i = None
+                if weights is not None:
+                    weights_i = np.copy(weights)
                 subsamples_i, weights_i = self.swap_samples(subsamples_i, weights_i)
-                # if self.recalc_sigma:
-                #     intensity = self.spectrum.recalc_kernel(samples=subsamples_i)
-                # else:
-                #     intensity = self.spectrum.recalc_spectrum(samples=subsamples_i)
-                intensity = self.get_PDF(samples=subsamples_i, weights=weights_i)
+                intensity = self.get_PDF(samples=subsamples_i, sweights=weights_i)
                 d_i = self.calc_diff(self.origintensity, intensity)
+                # print('d', d)
                 if test:
                     prob = 1
                     diff = abs(d_i - d)
@@ -418,12 +429,8 @@ class GeomReduction:
             print('diffmax', diffmax, 'diffmin', diffmin, 'd', d)
             return -diffmax/math.log(pi), -diffmin/math.log(pf)
         
-        # if self.recalc_sigma:
-        #     self.spectrum.recalc_kernel(samples=subsamples_best)
-        # else:
-        #     self.spectrum.recalc_spectrum(samples=subsamples_best)
-        # intensity = self.get_PDF(samples=subsamples_best)
-        self.get_PDF(subsamples_best, weights=weights_best, plot=True)
+        self.get_PDF(subsamples_best, sweights=weights_best, plot=True)
+        print('best d', d_best)
         self.subsamples = subsamples_best
         self.sweights = weights_best
         print(subsamples_best, weights_best)
@@ -483,7 +490,7 @@ class GeomReduction:
     #     return div
 
     def reduce_geoms(self):
-        self.origintensity = self.get_PDF()
+        self.origintensity = self.get_PDF(gen_grid=True)
         if self.subset == 1:
             print("Error: 1 sample not implemented!")
             return False
@@ -532,10 +539,12 @@ class GeomReduction:
         if index is not None:
             indexstr = '.' + str(index)
         outfile = self.get_name() + indexstr + '.geoms'
-#      print(str(self.spectrum.pid)+":\tPrinting geometries of reduced spectrum to "+outfile)
         with open(outfile, "w") as f:
             for i in range(len(self.subsamples)):
-                f.write('%s %s\n' % (self.subsamples[i]+1, self.sweights[i]))
+                if self.sweights is None:
+                    f.write('%s\n' % (self.subsamples[i]+1))
+                else:
+                    f.write('%s %s\n' % (self.subsamples[i]+1, self.sweights[i]))
                 
 if __name__ == "__main__":
     random.seed(0)
