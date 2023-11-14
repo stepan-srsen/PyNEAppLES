@@ -148,12 +148,6 @@ class PDFDiv:
         d = np.sum(np.power(cdf1-cdf2, 2))
         return d
 
-# def bandwidth(kde):
-#     # h = kde.silverman_factor()
-#     # print(h)
-#     h = 1
-#     return h
-
 class GeomReduction:
     def __init__(self, nsamples, nstates, subset, cycles, ncores, njobs, verbose, pdfcomp):
         self.nsamples = nsamples
@@ -230,6 +224,7 @@ class GeomReduction:
             plot = True
         
         if gen_grid:
+            # TODO: accept the params as argument, e.g. gen_grid=(100,1)
             self.n_points = 100
             n_sigma = 1
             
@@ -294,8 +289,10 @@ class GeomReduction:
                 weights = sweights
             if gen_grid and self.subset == 1:
                 kernel = gaussian_kde(values, bw_method=h, weights=weights)
+                # save the kernels so they can be reused later for self.subset=1 as they cannot be initialized in a regular way 
                 self.kernel.append(kernel)
             elif self.subset == 1:
+                # reuse the saved kernel when self.subset=1 as they cannot be initialized in a regular way 
                 kernel = self.kernel[state]
                 kernel.dataset = values
                 # kernel.weights = weights[:, None]
@@ -355,6 +352,8 @@ class GeomReduction:
         return pdf
         
     def select_subset(self, gen_weights=False, randomly=True):
+        # gen_weights effectively turns on integer weight optimization for geometries
+        # TODO: set gen_weights and thus weight optimization outside of the function
         if randomly:
             samples = np.array(random.sample(range(self.nsamples), self.subset))
         else:
@@ -386,7 +385,7 @@ class GeomReduction:
     
     def swap_samples(self, samples, weights=None):
         index1 = random.randrange(len(samples))
-        change_weights = np.random.randint(5)
+        change_weights = np.random.randint(5) # prob to change weights instead of swapping given by 1-1/change_weights
         # change_weights = 1
         if change_weights==0 or weights is None:
             rest = list(set(range(self.nsamples)) - set(samples))
@@ -566,6 +565,8 @@ class GeomReduction:
     def reduce_geoms(self):
         self.origintensity = self.get_PDF(gen_grid=True)
         if self.subset == 1:
+            # edit the saved kernels for self.subset=1 as they cannot be initialized in a regular way
+            # maybe move to get_PDF?
             for kernel in self.kernel:
                 kernel.set_bandwidth(bw_method=1)
                 kernel.n = 1
