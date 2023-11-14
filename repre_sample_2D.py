@@ -227,23 +227,43 @@ class GeomReduction:
             plot = True
         
         if gen_grid:
-            self.n_points = 50
-            n_sigma = 2
-            self.exc_min = np.zeros((self.nstates))
-            self.exc_max = np.zeros((self.nstates))
-            self.trans_min = np.zeros((self.nstates))
-            self.trans_max = np.zeros((self.nstates))
-            self.grid = np.zeros((self.nstates, 2, self.n_points**2))
-            self.norm = np.zeros((self.nstates))
+            self.n_points = 100
+            n_sigma = 0.25
+            
+            # self.exc_min = np.zeros((self.nstates))
+            # self.exc_max = np.zeros((self.nstates))
+            # self.trans_min = np.zeros((self.nstates))
+            # self.trans_max = np.zeros((self.nstates))
+            # self.norm = np.zeros((self.nstates))
+            # self.grid = np.zeros((self.nstates, 2, self.n_points**2))
+            
+            h1 = np.std(self.exc[samples].ravel())
+            h2 = np.std(self.trans[samples].ravel())
+            self.exc_min = self.exc[samples].min() - n_sigma*h1
+            self.exc_max = self.exc[samples].max() + n_sigma*h1
+            self.trans_min = self.trans[samples].min() - n_sigma*h2
+            self.trans_max = self.trans[samples].max() + n_sigma*h2
+            X, Y = np.mgrid[self.exc_min : self.exc_max : self.n_points*1j, self.trans_min : self.trans_max : self.n_points*1j]
+            dX = (self.exc_max - self.exc_min)/(self.n_points-1)
+            dY = (self.trans_max - self.trans_min)/(self.n_points-1)
+            norm = 1
+            if weighted:
+                if sweights is not None:
+                    norm = np.sum(self.weights[samples]*sweights)/np.sum(sweights)
+                else:
+                    norm = np.sum(self.weights[samples])/len(self.weights[samples])
+            self.norm = dX*dY/norm
+            self.grid = np.vstack([X.ravel(), Y.ravel()])
         
-        pdf = np.zeros((self.nstates, self.n_points**2))
+        # pdf = np.zeros((self.nstates, self.n_points**2))
+        pdf = np.zeros((self.n_points**2))
             
         for state in range(self.nstates):
             exc = self.exc[samples,state]
             trans = self.trans[samples,state]
             values = np.vstack([exc, trans]) # TODO: index values directly
             # h = bandwidth
-            norm = 1
+            norm = self.wnorms[state]
             weights = None
             if weighted:
                 if sweights is not None:
@@ -256,40 +276,50 @@ class GeomReduction:
                 weights = sweights
             kernel = gaussian_kde(values, bw_method=h, weights=weights)
             
-            if gen_grid:
-                h1 = kernel.covariance[0,0]**0.5
-                h2 = kernel.covariance[1,1]**0.5
-                print('bandwidths state', state, ':', h1, h2)
-                self.exc_min[state] = exc.min() - n_sigma*h1
-                self.exc_max[state] = exc.max() + n_sigma*h1
-                self.trans_min[state] = trans.min() - n_sigma*h2
-                self.trans_max[state] = trans.max() + n_sigma*h2
-                X, Y = np.mgrid[self.exc_min[state] : self.exc_max[state] : self.n_points*1j, self.trans_min[state] : self.trans_max[state] : self.n_points*1j]
-                dX = (self.exc_max[state] - self.exc_min[state])/(self.n_points-1)
-                dY = (self.trans_max[state] - self.trans_min[state])/(self.n_points-1)
-                # self.gweights = X.ravel()*Y.ravel()
-                self.norm[state] = dX*dY/norm
-                self.grid[state] = np.vstack([X.ravel(), Y.ravel()])
+            # if gen_grid:
+            #     h1 = kernel.covariance[0,0]**0.5
+            #     h2 = kernel.covariance[1,1]**0.5
+            #     print('bandwidths state', state, ':', h1, h2)
+            #     self.exc_min[state] = exc.min() - n_sigma*h1
+            #     self.exc_max[state] = exc.max() + n_sigma*h1
+            #     self.trans_min[state] = trans.min() - n_sigma*h2
+            #     self.trans_max[state] = trans.max() + n_sigma*h2
+            #     X, Y = np.mgrid[self.exc_min[state] : self.exc_max[state] : self.n_points*1j, self.trans_min[state] : self.trans_max[state] : self.n_points*1j]
+            #     dX = (self.exc_max[state] - self.exc_min[state])/(self.n_points-1)
+            #     dY = (self.trans_max[state] - self.trans_min[state])/(self.n_points-1)
+            #     # self.gweights = X.ravel()*Y.ravel()
+            #     self.norm[state] = dX*dY/norm
+            #     self.grid[state] = np.vstack([X.ravel(), Y.ravel()])
                 
-            pdf[state] = kernel(self.grid[state])*self.norm[state]*norm #*self.gweights
+            # pdf[state] = kernel(self.grid[state])*self.norm[state]*norm #*self.gweights
+            pdf += kernel(self.grid)*self.norm*norm#*self.wnorms[state] #*self.gweights
             # print('pdf sum', np.sum(pdf), norm)
+        
+        # pdf 
                 
-            if plot:
-                print('pdf sum', np.sum(pdf[state]))
-            plot=False
-            if plot:
-                import matplotlib.pyplot as plt
-                Z = np.reshape(pdf[state].T, (self.n_points,self.n_points))
-                plt.figure()
-                plt.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r,extent=[self.exc_min[state], self.exc_max[state], self.trans_min[state], self.trans_max[state]], aspect='auto')
-                plt.plot(exc, trans, 'k.', markersize=2)
-                plt.xlim([self.exc_min[state], self.exc_max[state]])
-                plt.ylim([self.trans_min[state], self.trans_max[state]])
-                plt.show()
+        if plot:
+            # print('pdf sum', np.sum(pdf[state]))
+            print('pdf sum', np.sum(pdf))
+        plot=False
+        if plot:
+            import matplotlib.pyplot as plt
+            # Z = np.reshape(pdf[state].T, (self.n_points,self.n_points))
+            # plt.figure()
+            # plt.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r,extent=[self.exc_min[state], self.exc_max[state], self.trans_min[state], self.trans_max[state]], aspect='auto')
+            # plt.plot(exc, trans, 'k.', markersize=2)
+            # plt.xlim([self.exc_min[state], self.exc_max[state]])
+            # plt.ylim([self.trans_min[state], self.trans_max[state]])
+            Z = np.reshape(pdf.T, (self.n_points,self.n_points))
+            plt.figure()
+            plt.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r,extent=[self.exc_min, self.exc_max, self.trans_min, self.trans_max], aspect='auto')
+            plt.plot(self.exc[samples].ravel(), self.trans[samples].ravel(), 'k.', markersize=2)
+            plt.xlim([self.exc_min, self.exc_max])
+            plt.ylim([self.trans_min, self.trans_max])
+            plt.show()
             
         return pdf
         
-    def select_subset(self, gen_weights=True, randomly=True):
+    def select_subset(self, gen_weights=False, randomly=True):
         if randomly:
             samples = np.array(random.sample(range(self.nsamples), self.subset))
         else:
@@ -381,9 +411,10 @@ class GeomReduction:
             temp = ti
 
         intensity = self.get_PDF(samples=subsamples, sweights=weights)
-        d = 0
-        for state in range(self.nstates):
-            d += self.calc_diff(self.origintensity, intensity)*self.wnorms[state]
+        d = self.calc_diff(self.origintensity, intensity)
+        # d = 0
+        # for state in range(self.nstates):
+        #     d += self.calc_diff(self.origintensity, intensity)*self.wnorms[state]
         
         if not test:
             m, s = divmod(int(round(sa_test_time*loops/self.cycles)), 60)
@@ -405,9 +436,10 @@ class GeomReduction:
                     weights_i = np.copy(weights)
                 subsamples_i, weights_i = self.swap_samples(subsamples_i, weights_i)
                 intensity = self.get_PDF(samples=subsamples_i, sweights=weights_i)
-                d_i = 0
-                for state in range(self.nstates):
-                    d_i += self.calc_diff(self.origintensity, intensity)*self.wnorms[state]
+                d_i = self.calc_diff(self.origintensity, intensity)
+                # d_i = 0
+                # for state in range(self.nstates):
+                #     d_i += self.calc_diff(self.origintensity, intensity)*self.wnorms[state]
                 # print('d', d)
                 if test:
                     prob = 1
