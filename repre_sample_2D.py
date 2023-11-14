@@ -58,7 +58,7 @@ class PDFDiv:
             pdf1 /= norm1
             pdf2 /= norm2
             normalized = True
-        thr = 1e-20
+        thr = 1e-10
         if not normalized:
             thr *= norm1
         indices = pdf1>thr
@@ -154,9 +154,9 @@ def bandwidth(kde):
 class GeomReduction:
     def __init__(self, nsamples, nstates, subset, cycles, ncores, njobs, verbose, pdfcomp):
         self.nsamples = nsamples
-        if nstates > 1:
-            print("ERROR: implemented only for 1 state!")
-            return False
+        # if nstates > 1:
+        #     print("ERROR: implemented only for 1 state!")
+        #     return False
         self.nstates = nstates
         self.exc = np.empty((nsamples, nstates))
         self.trans = np.empty((nsamples, nstates, 3))
@@ -214,6 +214,7 @@ class GeomReduction:
         self.trans = np.power(self.trans,2)
         self.trans = np.sum(self.trans, axis=2)
         self.weights = self.exc*self.trans
+        self.wnorms = np.sum(self.weights, axis=0)/np.sum(self.weights)
         
     def get_name(self):
         return 'absspec.' + self.infile.split(".")[0] + '.n' + str(self.nsamples) + '.' + self.time.strftime('%Y-%m-%d_%H-%M-%S') # + '.' + str(self.pid)
@@ -251,6 +252,8 @@ class GeomReduction:
                 else:
                     norm = np.sum(self.weights[samples,state])/len(self.weights[samples,state])
                     weights = self.weights[samples,state]
+            elif sweights is not None:
+                weights = sweights
             kernel = gaussian_kde(values, bw_method=h, weights=weights)
             
             if gen_grid:
@@ -276,7 +279,7 @@ class GeomReduction:
             plot=False
             if plot:
                 import matplotlib.pyplot as plt
-                Z = np.reshape(pdf.T, (self.n_points,self.n_points))
+                Z = np.reshape(pdf[state].T, (self.n_points,self.n_points))
                 plt.figure()
                 plt.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r,extent=[self.exc_min[state], self.exc_max[state], self.trans_min[state], self.trans_max[state]], aspect='auto')
                 plt.plot(exc, trans, 'k.', markersize=2)
@@ -284,7 +287,7 @@ class GeomReduction:
                 plt.ylim([self.trans_min[state], self.trans_max[state]])
                 plt.show()
             
-            return pdf[state]
+        return pdf
         
     def select_subset(self, gen_weights=True, randomly=True):
         if randomly:
@@ -318,7 +321,7 @@ class GeomReduction:
     
     def swap_samples(self, samples, weights=None):
         index1 = random.randrange(len(samples))
-        change_weights = np.random.randint(2)
+        change_weights = np.random.randint(5)
         # change_weights = 1
         if change_weights==0 or weights is None:
             rest = list(set(range(self.nsamples)) - set(samples))
@@ -378,7 +381,9 @@ class GeomReduction:
             temp = ti
 
         intensity = self.get_PDF(samples=subsamples, sweights=weights)
-        d = self.calc_diff(self.origintensity, intensity)
+        d = 0
+        for state in range(self.nstates):
+            d += self.calc_diff(self.origintensity, intensity)*self.wnorms[state]
         
         if not test:
             m, s = divmod(int(round(sa_test_time*loops/self.cycles)), 60)
@@ -400,7 +405,9 @@ class GeomReduction:
                     weights_i = np.copy(weights)
                 subsamples_i, weights_i = self.swap_samples(subsamples_i, weights_i)
                 intensity = self.get_PDF(samples=subsamples_i, sweights=weights_i)
-                d_i = self.calc_diff(self.origintensity, intensity)
+                d_i = 0
+                for state in range(self.nstates):
+                    d_i += self.calc_diff(self.origintensity, intensity)*self.wnorms[state]
                 # print('d', d)
                 if test:
                     prob = 1
