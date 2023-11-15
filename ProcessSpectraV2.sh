@@ -102,6 +102,6 @@ if [[ $ioniz = "true" ]];then
    options=" --notrans "$options
 fi
 
-stepython calc_spectrum_v2.py -n $samples -N $states --sigmaalg silverman $options $rawdata
-#stepython calc_spectrum_v2.py -n $samples -N $states --sigmaalg cv --onesigma $options $rawdata
+python calc_spectrum_v2.py -n $samples -N $states --sigmaalg silverman $options $rawdata
+#python calc_spectrum_v2.py -n $samples -N $states --sigmaalg cv --onesigma $options $rawdata
 
