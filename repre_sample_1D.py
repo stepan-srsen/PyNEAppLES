@@ -10,6 +10,7 @@ import random
 import math
 import time
 import os
+import sys
 from joblib import Parallel, delayed, cpu_count
 from argparse import ArgumentParser
 from calc_spectrum_v2 import SpectrumBroad
@@ -295,29 +296,41 @@ class GeomReduction:
         return div
 
     def reduce_geoms_worker(self, i, li=None, lf=None):
-        div = self.SA(li=li, lf=lf)
         name = self.spectrum.get_name() + '.r' + str(self.subset)
         os.chdir(name)
-        self.spectrum.writeout(i)
-        self.writegeoms(i)
+        orig_stdout = sys.stdout
+        with open('output.txt', 'a') as f:
+           sys.stdout = f
+           div = self.SA(li=li, lf=lf)
+           self.spectrum.writeout(i)
+           self.writegeoms(i)
+        sys.stdout = orig_stdout   
         os.chdir('..')
         return div
     
     def random_geoms_worker(self, i):
-        div = self.random_search()
         name = self.spectrum.get_name() + '.r' + str(self.subset)
         os.chdir(name)
-        self.spectrum.writeout("rnd"+str(i))
-        self.writegeoms("rnd"+str(i))
+        orig_stdout = sys.stdout
+        with open('output_rnd.txt', 'a') as f:
+           sys.stdout = f
+           div = self.random_search()
+           self.spectrum.writeout("rnd"+str(i))
+           self.writegeoms("rnd"+str(i))
+        sys.stdout = orig_stdout   
         os.chdir('..')
         return div
     
     def extensive_search_worker(self, i):
-        div = self.extensive_search(i)
         name = self.spectrum.get_name() + '.r' + str(self.subset)
         os.chdir(name)
-        self.spectrum.writeout("ext"+str(i))
-        self.writegeoms("ext"+str(i))
+        orig_stdout = sys.stdout
+        with open('output_ext.txt', 'a') as f:
+           sys.stdout = f
+           div = self.extensive_search(i)
+           self.spectrum.writeout("ext"+str(i))
+           self.writegeoms("ext"+str(i))
+        sys.stdout = orig_stdout   
         os.chdir('..')
         return div
 
@@ -351,13 +364,14 @@ class GeomReduction:
         itmin = 1
         itmax = int(math.ceil(nn/self.nsamples))
         itc = math.exp((math.log(itmax)-math.log(itmin))/self.cycles)
+	# calculate # of loops to provide comparable resources to random search
         loops=0
         it=itmin
         for _ in range(self.cycles):
             for _ in range(int(round(it))):
                 loops+=1
             it*=itc
-        print('loops', loops)
+        print('# of loops', loops)
         # print('loops approx.', int(itmin*(itc**(self.cycles)-1)/(itc-1)), 'Li', itmin, 'Lm', itmax)
         self.cycles = loops
         with Parallel(n_jobs=self.ncores, verbose=1*int(self.verbose)) as parallel:
