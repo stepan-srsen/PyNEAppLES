@@ -52,7 +52,7 @@ def read_cmd(parser=None, parse=True):
     parser.add_argument('--maxe', type=float, default=0.0,
                         help='Maximal energy of the spectrum in eV. Default = 0 for automatic setting. -1 for the minimal energy of the highest state.')
     parser.add_argument('--normalize', action="store_true", default=False,
-                        help='Normalize maximum to one.')
+                        help='Normalize maximum to one for printed spectra.')
     parser.add_argument('--notrans', action="store_true", default=False,
                         help='No transition dipole moments. Returns density of states. Useful for ionizations.')
     parser.add_argument('-e', '--ebars', type=float, default=0.0,

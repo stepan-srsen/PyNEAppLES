@@ -32,6 +32,8 @@ def read_cmd():
                         help='Minimal energy of the spectrum in eV. Default = 0.0')
     parser.add_argument('--maxe', type=float, default=0.0,
                         help='Maximal energy of the spectrum in eV. Default = 0.0')
+    parser.add_argument('--normalize', action="store_true", default=False,
+                        help='Normalize maximum to one for printed spectra.')
     parser.add_argument('--notrans', action="store_true", default=False,
                         help='No transition dipole moments. Spectrum will be normalized to unity. Useful for ionizations.')
     parser.add_argument('-j', '--ncores', type=int, default=1,
@@ -409,7 +411,7 @@ if __name__ == "__main__":
             print(option, getattr(options, option))
         print()
         print("Number of CPUs on this machine:", cpu_count())
-    spectrum = SpectrumBroad(options.nsamples, options.nstates, options.de, options.notrans,
+    spectrum = SpectrumBroad(options.nsamples, options.nstates, options.de, options.normalize, options.notrans,
                                  options.ncores, options.verbose, options.mine, options.maxe,
                                  decompose=False, sigma=0, onesigma=False, sigmaalg='silverman', tau=0)
     spectrum.read_data(options.infile)
