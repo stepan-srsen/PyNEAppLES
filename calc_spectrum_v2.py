@@ -51,8 +51,10 @@ def read_cmd(parser=None, parse=True):
                         help='Minimal energy of the spectrum in eV. Default = 0 for automatic setting.')
     parser.add_argument('--maxe', type=float, default=0.0,
                         help='Maximal energy of the spectrum in eV. Default = 0 for automatic setting. -1 for the minimal energy of the highest state.')
+    parser.add_argument('--normalize', action="store_true", default=False,
+                        help='Normalize maximum to one.')
     parser.add_argument('--notrans', action="store_true", default=False,
-                        help='No transition dipole moments. Spectrum will be normalized to unity. Useful for ionizations.')
+                        help='No transition dipole moments. Returns density of states. Useful for ionizations.')
     parser.add_argument('-e', '--ebars', type=float, default=0.0,
                         help='Calculate error bars / confidence intervals with given confidence from interval (0,1).'
                         + ' Alternatively, it is possible to set it to negative values for multiples of standard deviation, e.g. -2 means 2 standard deviations.')
@@ -225,7 +227,7 @@ def cv(samples, weights=None, lowerbound=None, upperbound=None, n_jobs=-1):
 class Spectrum:
     """Basis spectrum class for reflection principle without broadening"""
 
-    def __init__(self, nsamples, nstates, deltaE, notrans, ncores, verbose, minE, maxE, decompose):
+    def __init__(self, nsamples, nstates, deltaE, normalize, notrans, ncores, verbose, minE, maxE, decompose):
         self.trans = np.empty((nsamples, nstates, 3))
         self.intensity = []
         self.intensities = None
@@ -235,6 +237,7 @@ class Spectrum:
         self.nsamples = nsamples
         self.nsamples0 = nsamples
         self.nstates = nstates
+        self.normalize = normalize
         self.notrans = notrans
         self.verbose = verbose
         self.minE = minE
@@ -496,6 +499,8 @@ class Spectrum:
             x = xunit[1]/self.energies
         else:
             x = self.energies*xunit[1]
+        if self.normalize:
+            yunit[1] = 1/np.max(self.intensity)
         spectrum = np.hstack((x[:, np.newaxis], yunit[1]*self.intensity[:, np.newaxis]))
         if self.lb is not None and self.ub is not None:
             spectrum = np.hstack((spectrum, yunit[1]*self.lb[:, np.newaxis], yunit[1]*self.ub[:, np.newaxis]))
@@ -512,7 +517,7 @@ class Spectrum:
         yunits.append(['cross', 1.0, 'cm^2*molecule^-1'])
         yunits.append(['molar', 6.022140e20 / math.log(10), 'dm^3*mol^-1*cm^-1'])
         for xunit in xunits:
-            if self.notrans:
+            if self.notrans or self.normalize:
                 self.write_spectrum(xunit, ['arb', 1.0, 'arb.u.'], index)
                 continue
             for yunit in yunits:
@@ -521,9 +526,9 @@ class Spectrum:
 class SpectrumBroad(Spectrum):
     """Derived class for spectra with empirical gaussian and/or lorentzian broadening"""
 
-    def __init__(self, nsamples, nstates, deltaE, notrans, ncores, verbose, minE, maxE, decompose, 
+    def __init__(self, nsamples, nstates, deltaE, normalize, notrans, ncores, verbose, minE, maxE, decompose, 
                  sigma, onesigma, sigmaalg, tau):
-        super().__init__(nsamples, nstates, deltaE, notrans, ncores, verbose, minE, maxE, decompose)
+        super().__init__(nsamples, nstates, deltaE, normalize, notrans, ncores, verbose, minE, maxE, decompose)
         self.sigma = sigma
         self.onesigma = onesigma
         self.sigmaalg = sigmaalg
@@ -709,11 +714,11 @@ if __name__ == "__main__":
         print()
         print("Number of CPUs on this machine:", cpu_count())
     if options.tau > 0.0 or (options.sigma is not None and options.sigma >= 0):
-        spectrum = SpectrumBroad(options.nsamples, options.nstates, options.de, options.notrans,
+        spectrum = SpectrumBroad(options.nsamples, options.nstates, options.de, options.normalize, options.notrans,
                                  options.ncores, options.verbose, options.mine, options.maxe,
                                  options.decompose, options.sigma, options.onesigma, options.sigmaalg, options.tau)
     else:
-        spectrum = Spectrum(options.nsamples, options.nstates, options.de, options.notrans,
+        spectrum = Spectrum(options.nsamples, options.nstates, options.de, options.normalize, options.notrans,
                             options.ncores, options.verbose, options.mine, options.maxe,
                             options.decompose)
 
