@@ -59,8 +59,6 @@ class PDFDiv:
         """Generalized Kullback-Leibler divergence. pdf1 is used for probabilities."""
         # https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Interpretations
         # maybe normalize both by pdf1 for exact but comparable results
-        pdf1 = pdf1 + 1e-30
-        pdf2 = pdf2 + 1e-30
         if normalize or not normalized:
             norm1 = np.sum(pdf1)
             norm2 = np.sum(pdf2)
@@ -68,13 +66,21 @@ class PDFDiv:
             pdf1 /= norm1
             pdf2 /= norm2
             normalized = True
+        thr = 1e-15
+        if not normalized:
+            thr *= norm1
+        indices = pdf1>thr
+        pdf1 = pdf1[indices]
+        pdf2 = pdf2[indices]
+        pdf1 = pdf1 + thr
+        pdf2 = pdf2 + thr
+        
         d = np.divide(pdf1,pdf2)
         np.log(d, out=d)
         np.multiply(d, pdf1, out=d)
         d = np.sum(d)
         if not normalized:
             d += -norm1 + norm2
-    #    print(d)
         return d
 
     @staticmethod
