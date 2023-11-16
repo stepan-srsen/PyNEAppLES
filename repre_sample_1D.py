@@ -314,7 +314,7 @@ class GeomReduction:
            self.writegeoms(i)
         sys.stdout = orig_stdout   
         os.chdir('..')
-        return div
+        return div, self.subsamples
     
     def random_geoms_worker(self, i):
         name = self.spectrum.get_name() + '.r' + str(self.subset)
@@ -323,11 +323,11 @@ class GeomReduction:
         with open('output_rnd.txt', 'a') as f:
            sys.stdout = f
            div = self.random_search()
-           self.spectrum.writeout("rnd"+str(i))
-           self.writegeoms("rnd"+str(i))
+           self.spectrum.writeout("rnd."+str(i))
+           self.writegeoms("rnd."+str(i))
         sys.stdout = orig_stdout   
         os.chdir('..')
-        return div
+        return div, self.subsamples
     
     def extensive_search_worker(self, i):
         name = self.spectrum.get_name() + '.r' + str(self.subset)
@@ -336,11 +336,26 @@ class GeomReduction:
         with open('output_ext.txt', 'a') as f:
            sys.stdout = f
            div = self.extensive_search(i)
-           self.spectrum.writeout("ext"+str(i))
-           self.writegeoms("ext"+str(i))
+           self.spectrum.writeout("ext."+str(i))
+           self.writegeoms("ext."+str(i))
         sys.stdout = orig_stdout   
         os.chdir('..')
-        return div
+        return div, self.subsamples
+
+    def process_results(self, divs, subsamples, suffix=''):
+        print('average divergence', np.average(divs))
+        print('divergence std', np.std(divs))
+        min_index = np.argmin(divs)
+        min_div = divs[min_index]
+        self.subsamples = subsamples[min_index]
+        print('minimum divergence:', min_div, ', minimum index:', min_index)
+        if self.recalc_sigma:
+            self.spectrum.recalc_kernel(samples=self.subsamples)
+        else:
+            self.spectrum.recalc_spectrum(samples=self.subsamples)
+        self.spectrum.writeout('r'+str(self.subset)+'.'+suffix+str(min_index))
+        self.writegeoms('r'+str(self.subset)+'.'+suffix+str(min_index))
+
 
     def reduce_geoms(self):
        # check np.copy vs [:] !
@@ -361,12 +376,9 @@ class GeomReduction:
         os.mkdir(name)
         
         with Parallel(n_jobs=self.ncores, verbose=1*int(self.verbose)) as parallel:
-            divs = parallel(delayed(self.reduce_geoms_worker)(i) for i in range(self.njobs))
+            divs, subsamples = zip(*parallel(delayed(self.reduce_geoms_worker)(i) for i in range(self.njobs)))
         print('SA divergences:')
-        print('average divergence', np.average(divs))
-        print('divergence std', np.std(divs))
-        min_index = np.argmin(divs)
-        print('minimum divergence:', divs[min_index], ', minimum index:', min_index)
+        self.process_results(divs, subsamples)
         
         nn = self.subset*(self.nsamples-self.subset)
         itmin = 1
@@ -383,18 +395,15 @@ class GeomReduction:
         # print('loops approx.', int(itmin*(itc**(self.cycles)-1)/(itc-1)), 'Li', itmin, 'Lm', itmax)
         self.cycles = loops
         with Parallel(n_jobs=self.ncores, verbose=1*int(self.verbose)) as parallel:
-            divs = parallel(delayed(self.random_geoms_worker)(i) for i in range(self.njobs))
+            divs, subsamples = zip(*parallel(delayed(self.random_geoms_worker)(i) for i in range(self.njobs)))
         print('Random divergences:')
-        print('average divergence', np.average(divs))
-        print('divergence std', np.std(divs))
-        min_index = np.argmin(divs)
-        print('minimum divergence:', divs[min_index], ', minimum index:', min_index)
+        self.process_results(divs, subsamples, suffix='rnd.')
         
         if self.subset==1:
             with Parallel(n_jobs=self.ncores, verbose=1*int(self.verbose)) as parallel:
-                divs = parallel(delayed(self.extensive_search_worker)(i) for i in range(self.nsamples))
-            min_index = np.argmin(divs)
-            print('Global minimum divergence:', divs[min_index], ', minimum index:', min_index)
+                divs, subsamples = zip(*parallel(delayed(self.extensive_search_worker)(i) for i in range(self.nsamples)))
+            print('Extensive search = global minimum:')
+            self.process_results(divs, subsamples, suffix='ext.')
 
     def writegeoms(self, index=None):
         indexstr = ''
