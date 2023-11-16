@@ -640,5 +640,5 @@ if __name__ == "__main__":
     geomReduction.read_data(options.infile)
     geomReduction.reduce_geoms()
     
-    if options.verbose:
-        print('INFO: wall time', round(time.time()-start_time), 's')
+    #if options.verbose:
+    print('INFO: wall time', round(time.time()-start_time), 's')

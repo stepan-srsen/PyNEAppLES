@@ -436,5 +436,5 @@ if __name__ == "__main__":
                                   recalc_sigma=True)
     geomReduction.reduce_geoms()
     
-    if options.verbose:
-        print('INFO: wall time', round(time.time()-start_time), 's')
+    #if options.verbose:
+    print('INFO: wall time', round(time.time()-start_time), 's')
