@@ -602,17 +602,15 @@ class GeomReduction:
         min_div = divs[min_index]
         self.subsamples = subsamples[min_index]
         print('minimum divergence:', min_div, ', minimum index:', min_index)
-        #if self.recalc_sigma:
-        #    self.spectrum.recalc_kernel(samples=self.subsamples)
-        #else:
-        #    self.spectrum.recalc_spectrum(samples=self.subsamples)
-        #self.spectrum.writeout('r'+str(self.subset)+'.'+suffix+str(min_index))
         self.writegeoms('r'+str(self.subset)+'.'+suffix+str(min_index))
+        intensity = self.get_PDF(self.subsamples)
+        np.savetxt(self.get_name()+'.r'+str(self.subset)+'.'+suffix+str(min_index)+'.pdf.txt', np.vstack((self.grid, intensity)).T)
 
     def reduce_geoms(self):
         """Central function calling representative sample optimization based on user inputs."""
 
         self.origintensity = self.get_PDF(gen_grid=True)
+        np.savetxt(self.get_name()+'.pdf.txt', np.vstack((self.grid, self.origintensity)).T)
         if self.subset == 1:
             # edit the saved kernels for self.subset=1 as they cannot be initialized in a regular way
             # maybe move to get_PDF?
@@ -662,7 +660,7 @@ class GeomReduction:
         indexstr = ''
         if index is not None:
             indexstr = '.' + str(index)
-        outfile = self.get_name() + indexstr + '.geoms'
+        outfile = self.get_name() + indexstr + '.geoms.txt'
         with open(outfile, "w") as f:
             for i in range(len(self.subsamples)):
                 if self.sweights is None:

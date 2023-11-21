@@ -442,7 +442,7 @@ class GeomReduction:
         indexstr = ''
         if index is not None:
             indexstr = '.' + str(index)
-        outfile = self.spectrum.get_name() + indexstr + '.geoms'
+        outfile = self.spectrum.get_name() + indexstr + '.geoms.txt'
 #      print(str(self.spectrum.pid)+":\tPrinting geometries of reduced spectrum to "+outfile)
         with open(outfile, "w") as f:
             for i in self.subsamples:
