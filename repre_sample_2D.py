@@ -49,8 +49,9 @@ class PDFDiv:
     @staticmethod
     def KLdiv(pdf1, pdf2, normalized=False, normalize=False):
         """Generalized Kullback-Leibler divergence. pdf1 is used for probabilities."""
+
         # https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Interpretations
-        # maybe normalize both by pdf1 for exact but comparable results
+        # maybe normalize both by pdf1 for exact but comparable results? currently done in get_PDF
         if normalize or not normalized:
             norm1 = np.sum(pdf1)
             norm2 = np.sum(pdf2)
@@ -81,6 +82,7 @@ class PDFDiv:
     @staticmethod
     def JSdiv(pdf1, pdf2):
         """Jensen–Shannon divergence."""
+
         pdf3 = (pdf1 + pdf2) / 2
         d = 0.5*PDFDiv.KLdiv(pdf1, pdf3) + 0.5*PDFDiv.KLdiv(pdf2, pdf3)
     #    print(d)
@@ -89,6 +91,7 @@ class PDFDiv:
     @staticmethod
     def KStest(pdf1, pdf2):
         """Kolmogorov–Smirnov test."""
+
         cdf1 = 0.0
         cdf2 = 0.0
         d = 0.0
@@ -103,6 +106,7 @@ class PDFDiv:
     @staticmethod
     def kuiper(pdf1, pdf2):
         """Kuiper test."""
+
         cdf1 = 0.0
         cdf2 = 0.0
         dminus = 0.0
@@ -122,6 +126,7 @@ class PDFDiv:
     @staticmethod
     def SAE(pdf1, pdf2):
         """Sum of absolute errors/differences."""
+
         # proc ne suma ctvercu odchylek?
         d = np.sum(np.abs(pdf1-pdf2))
         return d
@@ -129,12 +134,14 @@ class PDFDiv:
     @staticmethod
     def RSS(pdf1, pdf2):
         """Residual sum of squares."""
+
         d = np.sum(np.power(pdf1-pdf2, 2))
         return d
     
     @staticmethod
     def cSAE(pdf1, pdf2):
         """Sum of absolute errors/differences of CDFs corresponding to given PDFs."""
+
         cdf1 = np.cumsum(pdf1)
         cdf2 = np.cumsum(pdf2)
         d = np.sum(np.abs(cdf1-cdf2))
@@ -143,12 +150,15 @@ class PDFDiv:
     @staticmethod
     def cRSS(pdf1, pdf2):
         """Residual sum of squares of CDFs corresponding to given PDFs."""
+
         cdf1 = np.cumsum(pdf1)
         cdf2 = np.cumsum(pdf2)
         d = np.sum(np.power(cdf1-cdf2, 2))
         return d
 
 class GeomReduction:
+    """Main class for the optimization of representative sample."""
+
     def __init__(self, nsamples, nstates, subset, cycles, ncores, njobs, verbose, pdfcomp):
         self.nsamples = nsamples
         # if nstates > 1:
@@ -170,6 +180,8 @@ class GeomReduction:
         self.pid = os.getpid()
             
     def read_data(self, infile):
+        """Reads and parses input data from given input file."""
+
         self.infile = infile
         self.time = datetime.datetime.now()
         with open(self.infile, "r") as f:
@@ -214,9 +226,13 @@ class GeomReduction:
         self.wnorms = np.sum(self.weights, axis=0)/np.sum(self.weights)
         
     def get_name(self):
+        """Defines the basename for the generated files."""
+
         return 'absspec.' + self.infile.split(".")[0] + '.n' + str(self.nsamples) + '.' + self.time.strftime('%Y-%m-%d_%H-%M-%S') # + '.' + str(self.pid)
         
     def get_PDF(self, samples=None, sweights=None, h='silverman', weighted=True, gen_grid=False, plot=False, dim1=False):
+        """Calculates probability density function for given data on a grid."""
+
         # TODO: compare each state separately or create common grid and intensity
         # TODO: weight states by corresponding integral intensity, i.e. sum(ene*trans**2)
         if samples is None:
@@ -224,6 +240,7 @@ class GeomReduction:
             plot = True
         
         if gen_grid:
+            # generate the grid and store it
             # TODO: accept the params as argument, e.g. gen_grid=(100,1)
             self.n_points = 100
             n_sigma = 1
@@ -257,7 +274,7 @@ class GeomReduction:
                 self.trans_max = self.trans[samples].max() + n_sigma*h2
                 X, Y = np.mgrid[self.exc_min : self.exc_max : self.n_points*1j, self.trans_min : self.trans_max : self.n_points*1j]
                 dY = (self.trans_max - self.trans_min)/(self.n_points-1)
-                self.norm = dX*dY/norm
+                self.norm = dX*dY/norm # sets the norm using full-sample PDF to obtain comparable values of divergences
                 self.grid = np.vstack([X.ravel(), Y.ravel()])
             if self.subset == 1:
                 self.kernel = []
@@ -300,21 +317,6 @@ class GeomReduction:
                 # norm *= self.nsamples
             else:
                 kernel = gaussian_kde(values, bw_method=h, weights=weights)
-            
-            # if gen_grid:
-            #     h1 = kernel.covariance[0,0]**0.5
-            #     h2 = kernel.covariance[1,1]**0.5
-            #     print('bandwidths state', state, ':', h1, h2)
-            #     self.exc_min[state] = exc.min() - n_sigma*h1
-            #     self.exc_max[state] = exc.max() + n_sigma*h1
-            #     self.trans_min[state] = trans.min() - n_sigma*h2
-            #     self.trans_max[state] = trans.max() + n_sigma*h2
-            #     X, Y = np.mgrid[self.exc_min[state] : self.exc_max[state] : self.n_points*1j, self.trans_min[state] : self.trans_max[state] : self.n_points*1j]
-            #     dX = (self.exc_max[state] - self.exc_min[state])/(self.n_points-1)
-            #     dY = (self.trans_max[state] - self.trans_min[state])/(self.n_points-1)
-            #     # self.gweights = X.ravel()*Y.ravel()
-            #     self.norm[state] = dX*dY/norm
-            #     self.grid[state] = np.vstack([X.ravel(), Y.ravel()])
                 
             # pdf[state] = kernel(self.grid[state])*self.norm[state]*norm #*self.gweights
             pdf += kernel(self.grid)*self.norm*norm#*self.wnorms[state] #*self.gweights
@@ -352,6 +354,8 @@ class GeomReduction:
         return pdf
         
     def select_subset(self, gen_weights=False, randomly=True):
+        """Random selection of a subsample of a given size."""
+
         # gen_weights effectively turns on integer weight optimization for geometries
         # TODO: set gen_weights and thus weight optimization outside of the function
         if randomly:
@@ -384,6 +388,8 @@ class GeomReduction:
         return samples, weights
     
     def swap_samples(self, samples, weights=None):
+        """Swap one datapoint between the representative subsample and the rest."""
+
         index1 = random.randrange(len(samples))
         change_weights = np.random.randint(5) # prob to change weights instead of swapping given by 1-1/change_weights
         # change_weights = 1
@@ -406,6 +412,8 @@ class GeomReduction:
         return samples, weights
 
     def SA(self, test=False, pi=0.9, pf=0.1, li=None, lf=None):
+        """Simulated annealing optimization for the selection of a subsample minimizing given divergence."""
+
         if test:
             subsamples = self.subsamples
             weights = self.sweights
@@ -510,6 +518,8 @@ class GeomReduction:
         return d_best
 
     # def random_search(self):
+    #     """Optimization of the representative sample using random search to minimize given divergence."""
+    #
     #     div = np.inf
     #     for i in range(self.cycles):
     #         subsamples, _ = self.select_subset()
@@ -529,6 +539,8 @@ class GeomReduction:
     #     return div
     
     def extensive_search(self, i):
+        """Optimization of the representative geometry using extensive search to minimize given divergence."""
+
         self.subsamples = [i]
         # if self.recalc_sigma:
         #     self.spectrum.recalc_kernel(samples=self.subsamples)
@@ -537,14 +549,8 @@ class GeomReduction:
         return div
 
     def reduce_geoms_worker(self, i, li=None, lf=None):
-        div = self.SA(li=li, lf=lf)
-        name = self.get_name() + '.r' + str(self.subset)
-        os.chdir(name)
-        self.writegeoms(i)
-        os.chdir('..')
-        return div, self.subsamples
-    
-    def reduce_geoms_worker(self, i, li=None, lf=None):
+        """Wrapper for SA opt. for the selection of a subsample minimizing given divergence."""
+
         name = self.get_name() + '.r' + str(self.subset)
         os.chdir(name)
         orig_stdout = sys.stdout
@@ -558,6 +564,8 @@ class GeomReduction:
         return div, self.subsamples
 
     #def random_geoms_worker(self, i):
+    #    """Wrapper for representative sample opt. using random search to minimize given divergence."""
+    #
     #    name = self.get_name() + '.r' + str(self.subset)
     #    os.chdir(name)
     #    orig_stdout = sys.stdout
@@ -571,6 +579,8 @@ class GeomReduction:
     #    return div, self.subsamples
     
     def extensive_search_worker(self, i):
+        """Wrapper for representative geometry opt. using extensive search to minimize given divergence."""
+
         name = self.get_name() + '.r' + str(self.subset)
         os.chdir(name)
         orig_stdout = sys.stdout
@@ -584,6 +594,8 @@ class GeomReduction:
         return div, self.subsamples
 
     def process_results(self, divs, subsamples, suffix=''):
+        """Process and print results from representative sample optimization."""
+
         print('average divergence', np.average(divs))
         print('divergence std', np.std(divs))
         min_index = np.argmin(divs)
@@ -598,6 +610,8 @@ class GeomReduction:
         self.writegeoms('r'+str(self.subset)+'.'+suffix+str(min_index))
 
     def reduce_geoms(self):
+        """Central function calling representative sample optimization based on user inputs."""
+
         self.origintensity = self.get_PDF(gen_grid=True)
         if self.subset == 1:
             # edit the saved kernels for self.subset=1 as they cannot be initialized in a regular way
@@ -612,11 +626,10 @@ class GeomReduction:
         os.mkdir(name)
         
         with Parallel(n_jobs=self.ncores, verbose=1*int(self.verbose)) as parallel:
-            # divs = parallel(delayed(self.reduce_geoms_worker)(i) for i in range(self.njobs))
             divs, subsamples = zip(*parallel(delayed(self.reduce_geoms_worker)(i) for i in range(self.njobs)))
         print('SA divergences:')
         self.process_results(divs, subsamples)
-        
+        # # calculate # of loops to provide comparable resources to random search        
         # nn = self.subset*(self.nsamples-self.subset)
         # itmin = 1
         # itmax = int(math.ceil(nn/self.nsamples))
@@ -631,14 +644,12 @@ class GeomReduction:
         # # print('loops approx.', int(itmin*(itc**(self.cycles)-1)/(itc-1)), 'Li', itmin, 'Lm', itmax)
         # self.cycles = loops
         # with Parallel(n_jobs=self.ncores, verbose=1*int(self.verbose)) as parallel:
-        #     #divs = parallel(delayed(self.random_geoms_worker)(i) for i in range(self.njobs))
         #     divs, subsamples = zip(*parallel(delayed(self.random_geoms_worker)(i) for i in range(self.njobs)))
         # print('Random divergences:')
         # self.process_results(divs, subsamples, suffix='rnd.')
         
         if self.subset==1:
             with Parallel(n_jobs=self.ncores, verbose=1*int(self.verbose)) as parallel:
-                # divs = parallel(delayed(self.extensive_search_worker)(i) for i in range(self.nsamples))
                 divs, subsamples = zip(*parallel(delayed(self.extensive_search_worker)(i) for i in range(self.nsamples)))
             min_index = np.argmin(divs)
             print('Extensive search = global minimum:')
@@ -646,6 +657,8 @@ class GeomReduction:
             #self.get_PDF([min_index], plot=True)
 
     def writegeoms(self, index=None):
+        """Writes a file with indices of the selected representative geometries."""
+
         indexstr = ''
         if index is not None:
             indexstr = '.' + str(index)

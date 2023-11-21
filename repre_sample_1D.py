@@ -17,6 +17,7 @@ from calc_spectrum_v2 import SpectrumBroad
 
 def read_cmd():
     """Function for command line parsing."""
+
 #    parser = calc_spectrum.read_cmd(parse=False)
     parser = ArgumentParser(description='Spectrum reduction.')
     parser.add_argument('infile', help='Input file.')
@@ -57,6 +58,7 @@ class PDFDiv:
     @staticmethod
     def KLdiv(pdf1, pdf2, normalized=False, normalize=False):
         """Generalized Kullback-Leibler divergence. pdf1 is used for probabilities."""
+
         # https://en.wikipedia.org/wiki/Kullback%E2%80%93Leibler_divergence#Interpretations
         # maybe normalize both by pdf1 for exact but comparable results
         if normalize or not normalized:
@@ -86,6 +88,7 @@ class PDFDiv:
     @staticmethod
     def JSdiv(pdf1, pdf2):
         """Jensen–Shannon divergence."""
+
         pdf3 = (pdf1 + pdf2) / 2
         d = 0.5*PDFDiv.KLdiv(pdf1, pdf3) + 0.5*PDFDiv.KLdiv(pdf2, pdf3)
     #    print(d)
@@ -94,6 +97,7 @@ class PDFDiv:
     @staticmethod
     def KStest(pdf1, pdf2):
         """Kolmogorov–Smirnov test."""
+
         cdf1 = 0.0
         cdf2 = 0.0
         d = 0.0
@@ -108,6 +112,7 @@ class PDFDiv:
     @staticmethod
     def kuiper(pdf1, pdf2):
         """Kuiper test."""
+
         cdf1 = 0.0
         cdf2 = 0.0
         dminus = 0.0
@@ -127,6 +132,7 @@ class PDFDiv:
     @staticmethod
     def SAE(pdf1, pdf2):
         """Sum of absolute errors/differences."""
+
         # proc ne suma ctvercu odchylek?
         d = np.sum(np.abs(pdf1-pdf2))
         return d
@@ -134,12 +140,14 @@ class PDFDiv:
     @staticmethod
     def RSS(pdf1, pdf2):
         """Residual sum of squares."""
+
         d = np.sum(np.power(pdf1-pdf2, 2))
         return d
     
     @staticmethod
     def cSAE(pdf1, pdf2):
         """Sum of absolute errors/differences of CDFs corresponding to given PDFs."""
+
         cdf1 = np.cumsum(pdf1)
         cdf2 = np.cumsum(pdf2)
         d = np.sum(np.abs(cdf1-cdf2))
@@ -148,12 +156,15 @@ class PDFDiv:
     @staticmethod
     def cRSS(pdf1, pdf2):
         """Residual sum of squares of CDFs corresponding to given PDFs."""
+
         cdf1 = np.cumsum(pdf1)
         cdf2 = np.cumsum(pdf2)
         d = np.sum(np.power(cdf1-cdf2, 2))
         return d
 
 class GeomReduction:
+    """Main class for the optimization of representative sample."""
+
     def __init__(self, spectrum, nsamples, subset, cycles, ncores, njobs, verbose, pdfcomp, recalc_sigma):
         self.spectrum = spectrum
         self.nsamples = nsamples
@@ -170,16 +181,22 @@ class GeomReduction:
             self.recalc_sigma = False
 
     def select_subset(self):
+        """Random selection of a subsample of a given size."""
+
         samples = random.sample(range(self.nsamples), self.subset)
         rest = list(set(range(self.nsamples)) - set(samples))
         return samples, rest
 
     def swap_samples(self, array1, array2):
+        """Swap one datapoint between the representative subsample and the rest."""
+
         index1 = random.randrange(len(array1))
         index2 = random.randrange(len(array2))
         array1[index1], array2[index2] = array2[index2], array1[index1]
 
     def SA(self, test=False, pi=0.9, pf=0.1, li=None, lf=None):
+        """Simulated annealing optimization for the selection of a subsample minimizing given divergence."""
+
         if test:
             subsamples = self.subsamples
             restsamples = list(set(range(self.nsamples)) - set(subsamples))
@@ -277,6 +294,8 @@ class GeomReduction:
         return d_best
 
     def random_search(self):
+        """Optimization of the representative sample using random search to minimize given divergence."""
+
         div = np.inf
         for i in range(self.cycles):
             subsamples, _ = self.select_subset()
@@ -296,6 +315,8 @@ class GeomReduction:
         return div
     
     def extensive_search(self, i):
+        """Optimization of the representative geometry using extensive search to minimize given divergence."""
+
         self.subsamples = [i]
         # if self.recalc_sigma:
         #     self.spectrum.recalc_kernel(samples=self.subsamples)
@@ -304,6 +325,8 @@ class GeomReduction:
         return div
 
     def reduce_geoms_worker(self, i, li=None, lf=None):
+        """Wrapper for SA opt. for the selection of a subsample minimizing given divergence."""
+
         name = self.spectrum.get_name() + '.r' + str(self.subset)
         os.chdir(name)
         orig_stdout = sys.stdout
@@ -317,6 +340,8 @@ class GeomReduction:
         return div, self.subsamples
     
     def random_geoms_worker(self, i):
+        """Wrapper for representative sample opt. using random search to minimize given divergence."""
+
         name = self.spectrum.get_name() + '.r' + str(self.subset)
         os.chdir(name)
         orig_stdout = sys.stdout
@@ -330,6 +355,8 @@ class GeomReduction:
         return div, self.subsamples
     
     def extensive_search_worker(self, i):
+        """Wrapper for representative geometry opt. using extensive search to minimize given divergence."""
+
         name = self.spectrum.get_name() + '.r' + str(self.subset)
         os.chdir(name)
         orig_stdout = sys.stdout
@@ -343,6 +370,8 @@ class GeomReduction:
         return div, self.subsamples
 
     def process_results(self, divs, subsamples, suffix=''):
+        """Process and print results from representative sample optimization."""
+
         print('average divergence', np.average(divs))
         print('divergence std', np.std(divs))
         min_index = np.argmin(divs)
@@ -358,6 +387,8 @@ class GeomReduction:
 
 
     def reduce_geoms(self):
+        """Central function calling representative sample optimization based on user inputs."""
+
        # check np.copy vs [:] !
         self.origintensity = np.copy(self.spectrum.calc_spectrum())
         print("Original spectrum sigmas: "+str(self.spectrum.sigmas))
@@ -406,6 +437,8 @@ class GeomReduction:
             self.process_results(divs, subsamples, suffix='ext.')
 
     def writegeoms(self, index=None):
+        """Writes a file with indices of the selected representative geometries."""
+
         indexstr = ''
         if index is not None:
             indexstr = '.' + str(index)
