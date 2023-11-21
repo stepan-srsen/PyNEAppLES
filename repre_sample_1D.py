@@ -336,8 +336,8 @@ class GeomReduction:
         with open('output_ext.txt', 'a') as f:
            sys.stdout = f
            div = self.extensive_search(i)
-           self.spectrum.writeout("ext."+str(i))
-           self.writegeoms("ext."+str(i))
+           #self.spectrum.writeout("ext."+str(i))
+           #self.writegeoms("ext."+str(i))
         sys.stdout = orig_stdout   
         os.chdir('..')
         return div, self.subsamples

@@ -544,22 +544,43 @@ class GeomReduction:
         os.chdir('..')
         return div, self.subsamples
     
-    # def random_geoms_worker(self, i):
-    #     div = self.random_search()
-    #     name = self.spectrum.get_name() + '.r' + str(self.subset)
-    #     os.chdir(name)
-    #     self.spectrum.writeout("rnd"+str(i))
-    #     self.writegeoms("rnd"+str(i))
-    #     os.chdir('..')
-    #     return div, self.subsamples
+    def reduce_geoms_worker(self, i, li=None, lf=None):
+        name = self.get_name() + '.r' + str(self.subset)
+        os.chdir(name)
+        orig_stdout = sys.stdout
+        with open('output.txt', 'a') as f:
+           sys.stdout = f
+           div = self.SA(li=li, lf=lf)
+           #self.spectrum.writeout(i)
+           self.writegeoms(i)
+        sys.stdout = orig_stdout   
+        os.chdir('..')
+        return div, self.subsamples
+
+    #def random_geoms_worker(self, i):
+    #    name = self.get_name() + '.r' + str(self.subset)
+    #    os.chdir(name)
+    #    orig_stdout = sys.stdout
+    #    with open('output_rnd.txt', 'a') as f:
+    #       sys.stdout = f
+    #       div = self.random_search()
+    #       #self.spectrum.writeout("rnd."+str(i))
+    #       self.writegeoms("rnd."+str(i))
+    #    sys.stdout = orig_stdout   
+    #    os.chdir('..')
+    #    return div, self.subsamples
     
     def extensive_search_worker(self, i):
-        div = self.extensive_search(i)
-        # name = self.spectrum.get_name() + '.r' + str(self.subset)
-        # os.chdir(name)
-        # self.spectrum.writeout("ext"+str(i))
-        # self.writegeoms("ext"+str(i))
-        # os.chdir('..')
+        name = self.get_name() + '.r' + str(self.subset)
+        os.chdir(name)
+        orig_stdout = sys.stdout
+        with open('output_ext.txt', 'a') as f:
+           sys.stdout = f
+           div = self.extensive_search(i)
+           #self.spectrum.writeout("ext."+str(i))
+           #self.writegeoms("ext."+str(i))
+        sys.stdout = orig_stdout   
+        os.chdir('..')
         return div, self.subsamples
 
     def process_results(self, divs, subsamples, suffix=''):
@@ -574,7 +595,7 @@ class GeomReduction:
         #else:
         #    self.spectrum.recalc_spectrum(samples=self.subsamples)
         #self.spectrum.writeout('r'+str(self.subset)+'.'+suffix+str(min_index))
-        #self.writegeoms('r'+str(self.subset)+'.'+suffix+str(min_index))
+        self.writegeoms('r'+str(self.subset)+'.'+suffix+str(min_index))
 
     def reduce_geoms(self):
         self.origintensity = self.get_PDF(gen_grid=True)
