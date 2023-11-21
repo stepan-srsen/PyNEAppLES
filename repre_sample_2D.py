@@ -159,7 +159,7 @@ class PDFDiv:
 class GeomReduction:
     """Main class for the optimization of representative sample."""
 
-    def __init__(self, nsamples, nstates, subset, cycles, ncores, njobs, verbose, pdfcomp):
+    def __init__(self, nsamples, nstates, subset, cycles, ncores, njobs, verbose, pdfcomp, dim1=False):
         self.nsamples = nsamples
         # if nstates > 1:
         #     print("ERROR: implemented only for 1 state!")
@@ -177,6 +177,7 @@ class GeomReduction:
         self.sweights = None
         self.origintensity = None
         self.calc_diff = getattr(PDFDiv, pdfcomp)
+        self.dim1 = dim1
         self.pid = os.getpid()
             
     def read_data(self, infile):
@@ -229,15 +230,15 @@ class GeomReduction:
         """Defines the basename for the generated files."""
 
         return 'absspec.' + self.infile.split(".")[0] + '.n' + str(self.nsamples) + '.' + self.time.strftime('%Y-%m-%d_%H-%M-%S') # + '.' + str(self.pid)
+
         
-    def get_PDF(self, samples=None, sweights=None, h='silverman', weighted=True, gen_grid=False, plot=False, dim1=False):
+    def get_PDF(self, samples=None, sweights=None, h='silverman', weighted=True, gen_grid=False):
         """Calculates probability density function for given data on a grid."""
 
         # TODO: compare each state separately or create common grid and intensity
         # TODO: weight states by corresponding integral intensity, i.e. sum(ene*trans**2)
         if samples is None:
             samples = slice(None)
-            plot = True
         
         if gen_grid:
             # generate the grid and store it
@@ -265,7 +266,7 @@ class GeomReduction:
             self.exc_min = self.exc[samples].min() - n_sigma*h1
             self.exc_max = self.exc[samples].max() + n_sigma*h1
             dX = (self.exc_max - self.exc_min)/(self.n_points-1)
-            if dim1:
+            if self.dim1:
                 self.grid = np.linspace(self.exc_min, self.exc_max, self.n_points)
                 self.norm = dX/norm
             else:
@@ -280,7 +281,7 @@ class GeomReduction:
                 self.kernel = []
         
         # pdf = np.zeros((self.nstates, self.n_points**2))
-        if dim1:
+        if self.dim1:
             pdf = np.zeros((self.n_points))
         else:
             pdf = np.zeros((self.n_points**2))
@@ -288,7 +289,7 @@ class GeomReduction:
         for state in range(self.nstates):
             exc = self.exc[samples,state]
             trans = self.trans[samples,state]
-            if dim1:
+            if self.dim1:
                 values = exc[None,:]
             else:
                 values = np.vstack([exc, trans]) # TODO: index values directly
@@ -322,35 +323,6 @@ class GeomReduction:
             pdf += kernel(self.grid)*self.norm*norm#*self.wnorms[state] #*self.gweights
             # print('pdf sum', np.sum(pdf), norm)
         
-        # pdf 
-                
-        if plot:
-            print('pdf sum', np.sum(pdf))
-        plot = False
-        if plot:
-            import matplotlib.pyplot as plt
-            # Z = np.reshape(pdf[state].T, (self.n_points,self.n_points))
-            # plt.figure()
-            # plt.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r,extent=[self.exc_min[state], self.exc_max[state], self.trans_min[state], self.trans_max[state]], aspect='auto')
-            # plt.plot(exc, trans, 'k.', markersize=2)
-            # plt.xlim([self.exc_min[state], self.exc_max[state]])
-            # plt.ylim([self.trans_min[state], self.trans_max[state]])
-            plt.figure()
-            plt.xlim([self.exc_min, self.exc_max])
-            if dim1:
-                plt.plot(self.exc[samples].ravel(), np.zeros((len(self.exc[samples].ravel()))), 'k.', markersize=2)
-                if not gen_grid:
-                    plt.plot(self.grid, self.origintensity)
-                plt.plot(self.grid, pdf)
-            else:
-                Z = np.reshape(pdf.T, (self.n_points,self.n_points))
-                plt.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r,extent=[self.exc_min, self.exc_max, self.trans_min, self.trans_max], aspect='auto')
-                plt.plot(self.exc[samples].ravel(), self.trans[samples].ravel(), 'k.', markersize=2)
-                plt.ylim([self.trans_min, self.trans_max])
-            # print('test 1')
-            plt.show()
-            # print('test 2')
-            
         return pdf
         
     def select_subset(self, gen_weights=False, randomly=True):
@@ -370,16 +342,12 @@ class GeomReduction:
             exc = exc/np.average(exc, weights=weights)
             trans = trans/np.average(trans, weights=weights)
             values = np.vstack([exc, trans]).T
-            # import matplotlib.pyplot as plt
-            # plt.figure()
-            # plt.plot(exc, trans, 'k.', markersize=2)
             dists = squareform(pdist(values))
             samples = [np.argmax(np.sum(dists, axis=1))]
             while len(samples) < self.subset:
                 sample = np.argmax(np.min(dists[:,samples], axis=1))
                 samples.append(sample)
             samples = np.array(samples)
-            # self.get_PDF(samples, plot=True)
         
         if gen_weights and self.subset>1:
             weights = int(self.nsamples/self.subset + 0.5)*np.ones(samples.shape, dtype=int)
@@ -510,7 +478,8 @@ class GeomReduction:
             print('diffmax', diffmax, 'diffmin', diffmin, 'd', d)
             return -diffmax/math.log(pi), -diffmin/math.log(pf)
         
-        self.get_PDF(subsamples_best, sweights=weights_best, plot=True)
+        pdf = self.get_PDF(subsamples_best, sweights=weights_best)
+        print('PDF sum', np.sum(pdf))
         print('best d', d_best)
         self.subsamples = subsamples_best
         self.sweights = weights_best
@@ -604,13 +573,17 @@ class GeomReduction:
         print('minimum divergence:', min_div, ', minimum index:', min_index)
         self.writegeoms('r'+str(self.subset)+'.'+suffix+str(min_index))
         intensity = self.get_PDF(self.subsamples)
+        print('optimal PDF sum', np.sum(intensity))
         np.savetxt(self.get_name()+'.r'+str(self.subset)+'.'+suffix+str(min_index)+'.pdf.txt', np.vstack((self.grid, intensity)).T)
+        self.save_pdf(pdf=intensity, fname=self.get_name()+'.r'+str(self.subset)+'.'+suffix+str(min_index)+'.pdf', markers=True)
 
     def reduce_geoms(self):
         """Central function calling representative sample optimization based on user inputs."""
 
         self.origintensity = self.get_PDF(gen_grid=True)
+        print('original PDF sum', np.sum(self.origintensity))
         np.savetxt(self.get_name()+'.pdf.txt', np.vstack((self.grid, self.origintensity)).T)
+        self.save_pdf(pdf=self.origintensity, fname=self.get_name()+'.pdf')
         if self.subset == 1:
             # edit the saved kernels for self.subset=1 as they cannot be initialized in a regular way
             # maybe move to get_PDF?
@@ -652,7 +625,34 @@ class GeomReduction:
             min_index = np.argmin(divs)
             print('Extensive search = global minimum:')
             self.process_results(divs, subsamples, suffix='ext.')
-            #self.get_PDF([min_index], plot=True)
+
+    def save_pdf(self, pdf, fname, markers=False, plot=False, ext='png', dpi=300):
+        """Saves PDF as an image."""
+
+        import matplotlib.pyplot as plt
+        samples = self.subsamples
+        if not plot:
+            plt.ioff()
+        plt.figure()
+        plt.xlim([self.exc_min, self.exc_max])
+        plt.xlabel('$\mathit{E}$/eV')
+        if self.dim1:
+            if markers:
+                plt.plot(self.exc[samples].ravel(), np.zeros((len(self.exc[samples].ravel()))), 'k.', markersize=2)
+            #    plt.plot(self.grid, self.origintensity)
+            plt.plot(self.grid, pdf)
+        else:
+            Z = np.reshape(pdf.T, (self.n_points,self.n_points))
+            plt.imshow(np.rot90(Z), cmap=plt.cm.gist_earth_r, extent=[self.exc_min, self.exc_max, self.trans_min, self.trans_max], aspect='auto')
+            if markers:
+                plt.plot(self.exc[samples].ravel(), self.trans[samples].ravel(), 'k.', markersize=2)
+            plt.ylim([self.trans_min, self.trans_max])
+            plt.ylabel('$\mathit{\mu}^2$/a.u.')
+        plt.savefig(fname+'.'+ext, bbox_inches='tight', dpi=dpi)
+        if plot:
+            plt.show()
+        else:
+            plt.ion()
 
     def writegeoms(self, index=None):
         """Writes a file with indices of the selected representative geometries."""
