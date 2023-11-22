@@ -489,6 +489,7 @@ class GeomReduction:
     # def random_search(self):
     #     """Optimization of the representative sample using random search to minimize given divergence."""
     #
+    #     self.sweights = None
     #     div = np.inf
     #     for i in range(self.cycles):
     #         subsamples, _ = self.select_subset()
@@ -511,6 +512,7 @@ class GeomReduction:
         """Optimization of the representative geometry using extensive search to minimize given divergence."""
 
         self.subsamples = [i]
+        self.sweights = None
         # if self.recalc_sigma:
         #     self.spectrum.recalc_kernel(samples=self.subsamples)
         intensity = self.get_PDF(self.subsamples)
@@ -530,8 +532,9 @@ class GeomReduction:
            self.writegeoms(i)
         sys.stdout = orig_stdout   
         os.chdir('..')
-        return div, self.subsamples
+        return div, self.subsamples, self.sweights
 
+    #TODO: make random search work
     #def random_geoms_worker(self, i):
     #    """Wrapper for representative sample opt. using random search to minimize given divergence."""
     #
@@ -545,7 +548,7 @@ class GeomReduction:
     #       self.writegeoms("rnd."+str(i))
     #    sys.stdout = orig_stdout   
     #    os.chdir('..')
-    #    return div, self.subsamples
+    #    return div, self.subsamples, self.sweights
     
     def extensive_search_worker(self, i):
         """Wrapper for representative geometry opt. using extensive search to minimize given divergence."""
@@ -560,9 +563,9 @@ class GeomReduction:
            #self.writegeoms("ext."+str(i))
         sys.stdout = orig_stdout   
         os.chdir('..')
-        return div, self.subsamples
+        return div, self.subsamples, self.sweights
 
-    def process_results(self, divs, subsamples, suffix=''):
+    def process_results(self, divs, subsamples, sweights, suffix=''):
         """Process and print results from representative sample optimization."""
 
         print('average divergence', np.average(divs))
@@ -570,9 +573,10 @@ class GeomReduction:
         min_index = np.argmin(divs)
         min_div = divs[min_index]
         self.subsamples = subsamples[min_index]
+        self.sweights = sweights[min_index]
         print('minimum divergence:', min_div, ', minimum index:', min_index)
         self.writegeoms('r'+str(self.subset)+'.'+suffix+str(min_index))
-        intensity = self.get_PDF(self.subsamples)
+        intensity = self.get_PDF(self.subsamples, self.sweights)
         print('optimal PDF sum', np.sum(intensity))
         np.savetxt(self.get_name()+'.r'+str(self.subset)+'.'+suffix+str(min_index)+'.pdf.txt', np.vstack((self.grid, intensity)).T)
         self.save_pdf(pdf=intensity, fname=self.get_name()+'.r'+str(self.subset)+'.'+suffix+str(min_index)+'.pdf', markers=True)
@@ -597,9 +601,10 @@ class GeomReduction:
         os.mkdir(name)
         
         with Parallel(n_jobs=self.ncores, verbose=1*int(self.verbose)) as parallel:
-            divs, subsamples = zip(*parallel(delayed(self.reduce_geoms_worker)(i) for i in range(self.njobs)))
+            divs, subsamples, sweights = zip(*parallel(delayed(self.reduce_geoms_worker)(i) for i in range(self.njobs)))
         print('SA divergences:')
-        self.process_results(divs, subsamples)
+        self.process_results(divs, subsamples, sweights)
+
         # # calculate # of loops to provide comparable resources to random search        
         # nn = self.subset*(self.nsamples-self.subset)
         # itmin = 1
@@ -615,18 +620,18 @@ class GeomReduction:
         # # print('loops approx.', int(itmin*(itc**(self.cycles)-1)/(itc-1)), 'Li', itmin, 'Lm', itmax)
         # self.cycles = loops
         # with Parallel(n_jobs=self.ncores, verbose=1*int(self.verbose)) as parallel:
-        #     divs, subsamples = zip(*parallel(delayed(self.random_geoms_worker)(i) for i in range(self.njobs)))
+        #     divs, subsamples, sweights = zip(*parallel(delayed(self.random_geoms_worker)(i) for i in range(self.njobs)))
         # print('Random divergences:')
-        # self.process_results(divs, subsamples, suffix='rnd.')
+        # self.process_results(divs, subsamples, sweights, suffix='rnd.')
         
         if self.subset==1:
             with Parallel(n_jobs=self.ncores, verbose=1*int(self.verbose)) as parallel:
-                divs, subsamples = zip(*parallel(delayed(self.extensive_search_worker)(i) for i in range(self.nsamples)))
+                divs, subsamples, sweights = zip(*parallel(delayed(self.extensive_search_worker)(i) for i in range(self.nsamples)))
             min_index = np.argmin(divs)
             print('Extensive search = global minimum:')
-            self.process_results(divs, subsamples, suffix='ext.')
+            self.process_results(divs, subsamples, sweights, suffix='ext.')
 
-    def save_pdf(self, pdf, fname, markers=False, plot=False, ext='png', dpi=300):
+    def save_pdf(self, pdf, fname, markers=False, plot=False, ext='png', dpi=72):
         """Saves PDF as an image."""
 
         import matplotlib.pyplot as plt
