@@ -38,8 +38,12 @@ def read_cmd():
                         help='Number of cycles for geometries reduction.')
     parser.add_argument('-J', '--njobs', dest='njobs', type=int, default=1,
                         help='Number of reduction jobs.')
+    parser.add_argument('-w', '--weighted', action='store_true',
+                        help='Weigh the distributions during optimization by spectroscopic importance ~E*tdm^2.')
     parser.add_argument('--pdfcomp', choices=['KLdiv','JSdiv','KStest', 'kuiper', 'SAE', 'RSS', 'cSAE', 'cRSS'], default='KLdiv',
                         help='Method for comparison of probability density functions.')
+    parser.add_argument('--intweights', action='store_true',
+                        help='Activate optimization of integer weights for individual geometries (instead of 0/1).')
     
     return parser.parse_args()
 
@@ -159,7 +163,7 @@ class PDFDiv:
 class GeomReduction:
     """Main class for the optimization of representative sample."""
 
-    def __init__(self, nsamples, nstates, subset, cycles, ncores, njobs, verbose, pdfcomp, dim1=False):
+    def __init__(self, nsamples, nstates, subset, cycles, ncores, njobs, weighted, pdfcomp, intweights, verbose, dim1=False):
         self.nsamples = nsamples
         # if nstates > 1:
         #     print("ERROR: implemented only for 1 state!")
@@ -176,7 +180,9 @@ class GeomReduction:
         self.subsamples = []
         self.sweights = None
         self.origintensity = None
+        self.weighted = weighted
         self.calc_diff = getattr(PDFDiv, pdfcomp)
+        self.intweights = intweights
         self.dim1 = dim1
         self.pid = os.getpid()
             
@@ -232,11 +238,11 @@ class GeomReduction:
         return 'absspec.' + self.infile.split(".")[0] + '.n' + str(self.nsamples) + '.' + self.time.strftime('%Y-%m-%d_%H-%M-%S') # + '.' + str(self.pid)
 
         
-    def get_PDF(self, samples=None, sweights=None, h='silverman', weighted=True, gen_grid=False):
+    def get_PDF(self, samples=None, sweights=None, h='silverman', gen_grid=False):
         """Calculates probability density function for given data on a grid."""
 
-        # TODO: compare each state separately or create common grid and intensity
-        # TODO: weight states by corresponding integral intensity, i.e. sum(ene*trans**2)
+        # TODO: compare each state separately or create common grid and intensity?
+        # TODO: weigh states by corresponding integral intensity, i.e. sum(ene*trans**2)?
         if samples is None:
             samples = slice(None)
         
@@ -246,18 +252,8 @@ class GeomReduction:
             self.n_points = 100
             n_sigma = 1
             
-            # self.exc_min = np.zeros((self.nstates))
-            # self.exc_max = np.zeros((self.nstates))
-            # self.trans_min = np.zeros((self.nstates))
-            # self.trans_max = np.zeros((self.nstates))
-            # self.norm = np.zeros((self.nstates))
-            # self.grid = np.zeros((self.nstates, 2, self.n_points**2))
-            
-            # if weighted:
-            #     h1 = np.cov(samples, aweights=self.weights)
-            # print(h1)
             norm = 1
-            if weighted:
+            if self.weighted:
                 if sweights is not None:
                     norm = np.sum(self.weights[samples]*sweights)/np.sum(sweights)
                 else:
@@ -296,7 +292,7 @@ class GeomReduction:
             # h = bandwidth
             norm = self.wnorms[state]
             weights = None
-            if weighted:
+            if self.weighted:
                 if sweights is not None:
                     norm = np.sum(self.weights[samples,state]*sweights)/np.sum(sweights)
                     weights = self.weights[samples,state]*sweights
@@ -325,11 +321,9 @@ class GeomReduction:
         
         return pdf
         
-    def select_subset(self, gen_weights=False, randomly=True):
+    def select_subset(self, randomly=True):
         """Random selection of a subsample of a given size."""
 
-        # gen_weights effectively turns on integer weight optimization for geometries
-        # TODO: set gen_weights and thus weight optimization outside of the function
         if randomly:
             samples = np.array(random.sample(range(self.nsamples), self.subset))
         else:
@@ -349,7 +343,7 @@ class GeomReduction:
                 samples.append(sample)
             samples = np.array(samples)
         
-        if gen_weights and self.subset>1:
+        if self.intweights and self.subset>1:
             weights = int(self.nsamples/self.subset + 0.5)*np.ones(samples.shape, dtype=int)
         else:
             weights = None
@@ -515,7 +509,7 @@ class GeomReduction:
         self.sweights = None
         # if self.recalc_sigma:
         #     self.spectrum.recalc_kernel(samples=self.subsamples)
-        intensity = self.get_PDF(self.subsamples)
+        intensity = self.get_PDF(self.subsamples, self.sweights)
         div = self.calc_diff(self.origintensity, intensity)
         return div
 
@@ -689,8 +683,8 @@ if __name__ == "__main__":
         print()
         print("Number of CPUs on this machine:", cpu_count())
 
-    geomReduction = GeomReduction(options.nsamples, options.nstates, options.subset, options.cycles,
-                                  options.ncores, options.njobs, options.verbose, options.pdfcomp)
+    geomReduction = GeomReduction(options.nsamples, options.nstates, options.subset, options.cycles, options.ncores,
+                                  options.njobs, options.weighted, options.pdfcomp, options.intweights, options.verbose)
     geomReduction.read_data(options.infile)
     geomReduction.reduce_geoms()
     

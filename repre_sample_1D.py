@@ -25,8 +25,8 @@ def read_cmd():
                         help='Number of samples.')
     parser.add_argument('-N', '--nstates', type=int, default=1,
                         help='Number of excited states (ground state not included).')
-    parser.add_argument('-d', '--de', type=float, default=0.02,
-                        help='Bin step in eV. Default = 0.02 ')
+    parser.add_argument('-d', '--de', type=float, default=0.01,
+                        help='Resolution in eV. Default = 0.01')
     parser.add_argument('-v', '--verbose', action='store_true',
                         help='Activate verbose mode.')
     parser.add_argument('--mine', type=float, default=0.0,
