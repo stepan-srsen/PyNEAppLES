@@ -578,14 +578,19 @@ class GeomReduction:
         self.writegeoms('r'+str(self.subset)+'.'+suffix+str(min_index))
         intensity = self.get_PDF(self.subsamples, self.sweights)
         print('optimal PDF sum', np.sum(intensity))
-        np.savetxt(self.get_name()+'.r'+str(self.subset)+'.'+suffix+str(min_index)+'.pdf.txt', np.vstack((self.grid, intensity)).T)
-        self.save_pdf(pdf=intensity, fname=self.get_name()+'.r'+str(self.subset)+'.'+suffix+str(min_index)+'.pdf', markers=True)
+        name = self.get_name()+'.r'+str(self.subset)+'.'+suffix+str(min_index)
+        np.savetxt(name+'.exc.txt', self.exc[self.subsamples])
+        np.savetxt(name+'.tdm.txt', self.trans[self.subsamples])
+        np.savetxt(name+'.pdf.txt', np.vstack((self.grid, intensity)).T)
+        self.save_pdf(pdf=intensity, fname=name+'.pdf', markers=True)
 
     def reduce_geoms(self):
         """Central function calling representative sample optimization based on user inputs."""
 
         self.origintensity = self.get_PDF(gen_grid=True)
         print('original PDF sum', np.sum(self.origintensity))
+        #np.savetxt(self.get_name()+'.exc.txt', self.exc)
+        #np.savetxt(self.get_name()+'.tdm.txt', self.trans)
         np.savetxt(self.get_name()+'.pdf.txt', np.vstack((self.grid, self.origintensity)).T)
         self.save_pdf(pdf=self.origintensity, fname=self.get_name()+'.pdf')
         if self.subset == 1:
