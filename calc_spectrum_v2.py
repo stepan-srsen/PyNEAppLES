@@ -34,7 +34,7 @@ def read_cmd(parser=None, parse=True):
     parser.add_argument('-N', '--nstates', type=int, default=1,
                         help='Number of excited states (ground state not included).')
     parser.add_argument('-d', '--de', type=float, default=0.02,
-                        help='Bin step in eV. Default = 0.02 ')
+                        help='Bin step in eV for histogramming or resolution for broadened spectra. Default = 0.02 ')
     parser.add_argument('-D', '--decompose', action="store_true", default=False,
                         help='Prints the spectrum for each state separately as well.')
     parser.add_argument('-s', '--sigma', type=float, default=-1.0,
@@ -430,6 +430,9 @@ class Spectrum:
         if assym and not (conf > 0 and conf < 1):
             print('WARNING: Assymetric error bars available only for confidence in (0,1) interval. Skipping.')
             return False
+
+        if alg != 'bootstrap':
+            print('WARNING: Calculation of confidence intervals with other alogirthms than "bootstrap" is experimental or under development.')
 
         if alg == 'sqrtn':
             if assym:
