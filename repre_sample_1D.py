@@ -330,11 +330,12 @@ class GeomReduction:
         name = self.spectrum.get_name() + '.r' + str(self.subset)
         os.chdir(name)
         orig_stdout = sys.stdout
-        with open('output.txt', 'a') as f:
+        with open('output_r'+str(self.subset)+'.txt', 'a') as f:
            sys.stdout = f
            div = self.SA(li=li, lf=lf)
-           self.spectrum.writeout(i)
-           self.writegeoms(i)
+           index = 'r'+str(self.subset)+'.'+str(i)
+           self.spectrum.writeout(index)
+           self.writegeoms(index)
         sys.stdout = orig_stdout   
         os.chdir('..')
         return div, self.subsamples
@@ -345,11 +346,12 @@ class GeomReduction:
         name = self.spectrum.get_name() + '.r' + str(self.subset)
         os.chdir(name)
         orig_stdout = sys.stdout
-        with open('output_rnd.txt', 'a') as f:
+        with open('output_r'+str(self.subset)+'_rnd.txt', 'a') as f:
            sys.stdout = f
            div = self.random_search()
-           self.spectrum.writeout("rnd."+str(i))
-           self.writegeoms("rnd."+str(i))
+           index = 'r'+str(self.subset)+'.'+'rnd.'+str(i)
+           self.spectrum.writeout(index)
+           self.writegeoms(index)
         sys.stdout = orig_stdout   
         os.chdir('..')
         return div, self.subsamples
@@ -360,11 +362,12 @@ class GeomReduction:
         name = self.spectrum.get_name() + '.r' + str(self.subset)
         os.chdir(name)
         orig_stdout = sys.stdout
-        with open('output_ext.txt', 'a') as f:
+        with open('output_r'+str(self.subset)+'_ext.txt', 'a') as f:
            sys.stdout = f
            div = self.extensive_search(i)
-           #self.spectrum.writeout("ext."+str(i))
-           #self.writegeoms("ext."+str(i))
+           index = 'r'+str(self.subset)+'.'+'ext.'+str(i)
+           #self.spectrum.writeout(index)
+           #self.writegeoms(index)
         sys.stdout = orig_stdout   
         os.chdir('..')
         return div, self.subsamples
@@ -463,7 +466,6 @@ if __name__ == "__main__":
                                  options.ncores, options.verbose, options.mine, options.maxe,
                                  decompose=False, sigma=0, onesigma=False, sigmaalg='silverman', tau=0)
     spectrum.read_data(options.infile)
-    # os.chdir('DATA')
     geomReduction = GeomReduction(spectrum, options.nsamples, options.subset, options.cycles,
                                   options.ncores, options.njobs, options.verbose, options.pdfcomp,
                                   recalc_sigma=True)

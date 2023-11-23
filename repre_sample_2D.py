@@ -522,11 +522,11 @@ class GeomReduction:
         name = self.get_name() + '.r' + str(self.subset)
         os.chdir(name)
         orig_stdout = sys.stdout
-        with open('output.txt', 'a') as f:
+        with open('output_r'+str(self.subset)+'.txt', 'a') as f:
            sys.stdout = f
            div = self.SA(li=li, lf=lf)
            #self.spectrum.writeout(i)
-           self.writegeoms(i)
+           self.writegeoms('r'+str(self.subset)+'.'+str(i))
         sys.stdout = orig_stdout   
         os.chdir('..')
         return div, self.subsamples, self.sweights
@@ -538,11 +538,11 @@ class GeomReduction:
     #    name = self.get_name() + '.r' + str(self.subset)
     #    os.chdir(name)
     #    orig_stdout = sys.stdout
-    #    with open('output_rnd.txt', 'a') as f:
+    #    with open('output_r'+str(self.subset)+'_rnd.txt', 'a') as f:
     #       sys.stdout = f
     #       div = self.random_search()
     #       #self.spectrum.writeout("rnd."+str(i))
-    #       self.writegeoms("rnd."+str(i))
+    #       self.writegeoms('r'+str(self.subset)+'.'+'rnd.'+str(i))
     #    sys.stdout = orig_stdout   
     #    os.chdir('..')
     #    return div, self.subsamples, self.sweights
@@ -553,11 +553,11 @@ class GeomReduction:
         name = self.get_name() + '.r' + str(self.subset)
         os.chdir(name)
         orig_stdout = sys.stdout
-        with open('output_ext.txt', 'a') as f:
+        with open('output_r'+str(self.subset)+'_ext.txt', 'a') as f:
            sys.stdout = f
            div = self.extensive_search(i)
            #self.spectrum.writeout("ext."+str(i))
-           #self.writegeoms("ext."+str(i))
+           #self.writegeoms('r'+str(self.subset)+'.'+'.ext.'+str(i))
         sys.stdout = orig_stdout   
         os.chdir('..')
         return div, self.subsamples, self.sweights
