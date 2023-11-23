@@ -16,6 +16,9 @@ from argparse import ArgumentParser
 import datetime
 from scipy.stats import gaussian_kde
 from scipy.spatial.distance import pdist, squareform
+import matplotlib as mpl
+# mpl.use('agg') # noninteractive backend when there are problems with the $DISPLAY
+import matplotlib.pyplot as plt
 
 def read_cmd():
     """Function for command line parsing."""
@@ -633,7 +636,6 @@ class GeomReduction:
     def save_pdf(self, pdf, fname, markers=False, plot=False, ext='png', dpi=72):
         """Saves PDF as an image."""
 
-        import matplotlib.pyplot as plt
         samples = self.subsamples
         if not plot:
             plt.ioff()
