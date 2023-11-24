@@ -11,6 +11,8 @@ This repository also includes a program for so-called representative sampling (s
 
 #### CalcSpectrumV2.sh
 
+Bash wrapper around the `calc_spectrum_v2.py` python code with basic features only.
+
 #### osc2tdm.sh
 
 #### tdm2osc.sh
