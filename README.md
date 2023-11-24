@@ -9,7 +9,7 @@ This repository also includes a program for so-called representative sampling (s
 
 #### calc_spectrum_v2.py
 
-#### ProcessSpectraV2.sh
+#### CalcSpectrumV2.sh
 
 #### osc2tdm.sh
 
