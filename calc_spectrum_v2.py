@@ -34,12 +34,13 @@ def read_cmd(parser=None, parse=True):
                         help='Number of samples.')
     parser.add_argument('-N', '--nstates', type=int, default=1,
                         help='Number of excited states (ground state not included).')
-    parser.add_argument('-d', '--de', type=float, default=0.02,
-                        help='Bin step in eV for histogramming or resolution for broadened spectra. Default = 0.02 ')
+    parser.add_argument('-d', '--de', type=float, default=0.01,
+                        help='Bin step in eV for histogramming or resolution for broadened spectra. Default = 0.01')
     parser.add_argument('-D', '--decompose', action="store_true", default=False,
                         help='Prints the spectrum for each state separately as well.')
-    parser.add_argument('-s', '--sigma', type=float, default=-1.0,
-                        help='Parameter for Gaussian broadening. Float number for direct setting, negative values for turning off, 0 for automatic setting.')
+    parser.add_argument('-s', '--sigma', type=float, default=0.0,
+                        help='Parameter for Gaussian broadening. Float number for direct setting, '
+                        + 'negative values for turning off, 0 for automatic setting (default).')
     parser.add_argument('--onesigma', action="store_true", default=False,
                         help='Optimize one sigma value for all electronic states. Otherwise it selects one sigma per each state.')
     parser.add_argument('-a', '--sigmaalg', choices=['silverman', 'cv', 'dev'], default='silverman',
@@ -57,8 +58,8 @@ def read_cmd(parser=None, parse=True):
     parser.add_argument('--notrans', action="store_true", default=False,
                         help='No transition dipole moments. Returns density of states. Useful for ionizations.')
     parser.add_argument('-e', '--ebars', type=float, default=0.0,
-                        help='Calculate error bars / confidence intervals with given confidence from interval (0,1).'
-                        + ' Alternatively, it is possible to set it to negative values for multiples of standard deviation, e.g. -2 means 2 standard deviations.')
+                        help='Calculate error bars / confidence intervals with given confidence from interval (0,1). '
+                        + 'Alternatively, it is possible to set it to negative values for multiples of standard deviation, e.g. -2 means 2 standard deviations.')
     # TODO: implement ebar options to class init functions
     parser.add_argument('--eassym', action='store_true',
                         help='Calculate the error bars assymetrically if possible with given algorithm.')
