@@ -133,7 +133,6 @@ class PDFDiv:
     def SAE(pdf1, pdf2):
         """Sum of absolute errors/differences."""
 
-        # proc ne suma ctvercu odchylek?
         d = np.sum(np.abs(pdf1-pdf2))
         return d
     
@@ -248,7 +247,7 @@ class GeomReduction:
             toprint += "\n\tMarkov Chain Length coefficient = "+str(itc)+", Initial D-min = "+str(d)
             toprint += "\n\tEstimated run time: "+str(h)+" hours "+str(m)+" minutes "+str(s)+" seconds"
             print(toprint)
-#         sys.stdout.flush()
+            #sys.stdout.flush()
 
         for _ in range(self.cycles):
             for _ in range(int(round(it))):
@@ -365,7 +364,7 @@ class GeomReduction:
         with open('output_r'+str(self.subset)+'_ext.txt', 'a') as f:
            sys.stdout = f
            div = self.extensive_search(i)
-           index = 'r'+str(self.subset)+'.'+'ext.'+str(i)
+           #index = 'r'+str(self.subset)+'.'+'ext.'+str(i)
            #self.spectrum.writeout(index)
            #self.writegeoms(index)
         sys.stdout = orig_stdout   
@@ -389,10 +388,10 @@ class GeomReduction:
         self.writegeoms('r'+str(self.subset)+'.'+suffix+str(min_index))
 
 
-    def reduce_geoms(self):
+    def reduce_geoms(self, test_random=False):
         """Central function calling representative sample optimization based on user inputs."""
 
-       # check np.copy vs [:] !
+        # check np.copy vs [:] !
         self.origintensity = np.copy(self.spectrum.calc_spectrum())
         print("Original spectrum sigmas: "+str(self.spectrum.sigmas))
         print("\nPrinting original spectra:")
@@ -413,25 +412,26 @@ class GeomReduction:
             divs, subsamples = zip(*parallel(delayed(self.reduce_geoms_worker)(i) for i in range(self.njobs)))
         print('SA divergences:')
         self.process_results(divs, subsamples)
-        
-        nn = self.subset*(self.nsamples-self.subset)
-        itmin = 1
-        itmax = int(math.ceil(nn/self.nsamples))
-        itc = math.exp((math.log(itmax)-math.log(itmin))/self.cycles)
-	# calculate # of loops to provide comparable resources to random search
-        loops=0
-        it=itmin
-        for _ in range(self.cycles):
-            for _ in range(int(round(it))):
-                loops+=1
-            it*=itc
-        print('# of loops', loops)
-        # print('loops approx.', int(itmin*(itc**(self.cycles)-1)/(itc-1)), 'Li', itmin, 'Lm', itmax)
-        self.cycles = loops
-        with Parallel(n_jobs=self.ncores, verbose=1*int(self.verbose)) as parallel:
-            divs, subsamples = zip(*parallel(delayed(self.random_geoms_worker)(i) for i in range(self.njobs)))
-        print('Random divergences:')
-        self.process_results(divs, subsamples, suffix='rnd.')
+    
+        if test_random:
+            nn = self.subset*(self.nsamples-self.subset)
+            itmin = 1
+            itmax = int(math.ceil(nn/self.nsamples))
+            itc = math.exp((math.log(itmax)-math.log(itmin))/self.cycles)
+            # calculate # of loops to provide comparable resources to random search
+            loops=0
+            it=itmin
+            for _ in range(self.cycles):
+                for _ in range(int(round(it))):
+                    loops+=1
+                it*=itc
+            print('# of loops', loops)
+            # print('loops approx.', int(itmin*(itc**(self.cycles)-1)/(itc-1)), 'Li', itmin, 'Lm', itmax)
+            self.cycles = loops
+            with Parallel(n_jobs=self.ncores, verbose=1*int(self.verbose)) as parallel:
+                divs, subsamples = zip(*parallel(delayed(self.random_geoms_worker)(i) for i in range(self.njobs)))
+            print('Random divergences:')
+            self.process_results(divs, subsamples, suffix='rnd.')
         
         if self.subset==1:
             with Parallel(n_jobs=self.ncores, verbose=1*int(self.verbose)) as parallel:
@@ -446,10 +446,9 @@ class GeomReduction:
         if index is not None:
             indexstr = '.' + str(index)
         outfile = self.spectrum.get_name() + indexstr + '.geoms.txt'
-#      print(str(self.spectrum.pid)+":\tPrinting geometries of reduced spectrum to "+outfile)
+        # print(str(self.spectrum.pid)+":\tPrinting geometries of reduced spectrum to "+outfile)
         with open(outfile, "w") as f:
             for i in self.subsamples:
-    #         f.write('%s' % (self.samples[i]))
                 f.write('%s\n' % (i+1))
                 
 if __name__ == "__main__":
