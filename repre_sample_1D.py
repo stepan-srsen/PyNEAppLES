@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Program for the selection of the most representative molecular geometries for spectra modelling.
