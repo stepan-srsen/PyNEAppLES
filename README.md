@@ -49,7 +49,7 @@ An older version of representative sampling. It optimizes directly the electroni
 
 Example call for 1000 samples and 5 states asking for the optimization of a representative sample of 20 geometries using KL divergence and 32 optimization jobs with 2000 cycles on 16 CPU cores. Parameters `--mine` and `--maxe` define the optimized region of the spectrum.
 ```
-python repre_sample_1D.py -n 1000 -N 5 -S 20 --mine 1.7 --maxe 5.4 -c 2000 -j 16 -J 32 --pdfcomp KLdiv input.txt > output.txt
+repre_sample_1D.py -n 1000 -N 5 -S 20 --mine 1.7 --maxe 5.4 -c 2000 -j 16 -J 32 --pdfcomp KLdiv input.txt > output.txt
 ```
 
 The program expects the same input file as the `calc_spectrum_v2.py` program. The program then prints a file with the indices of the selected geometries (non-pythonic indexing, that is, 1st geometry has index 1) which can be further recalculated at a higher level of theory and processed with the `calc_spectrum_v2.py` script. The program also prints the full spectrum and the spectrum of the representative subset. Overall sample statistics of the optimization jobs such as divergences are written to the standard output, that is, to `output.txt` in the example above. The results of the individual optimization jobs are stored in a subfolder.
@@ -62,7 +62,7 @@ A newer version of representative sampling code. As opposed to `repre_sample_1D.
 
 Example call for 1000 samples and 5 states asking for the optimization of a representative sample of 20 geometries using KL divergence and 32 optimization jobs with 2000 cycles on 16 CPU cores. The `-w` switch turns on the weighting of the distribution by spectroscopic significance (~E*tdm^2) during the optimization.
 ```
-python repre_sample_2D.py -n 1000 -N 5 -S 20 -c 2000 -j 16 -J 32 -w --pdfcomp KLdiv input.txt > output.txt
+repre_sample_2D.py -n 1000 -N 5 -S 20 -c 2000 -j 16 -J 32 -w --pdfcomp KLdiv input.txt > output.txt
 ```
 
 The program expects the same input file as the `calc_spectrum_v2.py` program. The program then prints a file with the indices of the selected geometries (non-pythonic indexing, that is, 1st geometry has index 1) which can be further recalculated at a higher level of theory and processed with the `calc_spectrum_v2.py` script. The program also prints the full 2D distribution and the distribution of the representative subset both as a data file and in the form image file. Overall sample statistics of the optimization jobs such as divergences are written to the standard output, that is, to `output.txt` in the example above. The results of the individual optimization jobs are stored in a subfolder.
