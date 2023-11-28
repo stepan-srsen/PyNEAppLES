@@ -39,7 +39,7 @@ def read_cmd(parser=None, parse=True):
     parser.add_argument('-D', '--decompose', action="store_true", default=False,
                         help='Prints the spectrum for each state separately as well.')
     parser.add_argument('-s', '--sigma', type=float, default=0.0,
-                        help='Parameter for Gaussian broadening. Float number for direct setting, '
+                        help='Standard deviation for Gaussian broadening. Float number for direct setting, '
                         + 'negative values for turning off, 0 for automatic setting (default).')
     parser.add_argument('--onesigma', action="store_true", default=False,
                         help='Optimize one sigma value for all electronic states. Otherwise it selects one sigma per each state.')
