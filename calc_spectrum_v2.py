@@ -491,7 +491,11 @@ class Spectrum:
 
     # TODO: remove date from name
     def get_name(self):
-        return 'absspec.' + self.infile.split(".")[0] + '.n' + str(self.nsamples) + '.' + self.time.strftime('%Y-%m-%d_%H-%M-%S') # + '.' + str(self.pid)
+        """Defines the basename for the generated files."""
+
+        bname = os.path.basename(self.infile)
+        name = bname.split(".")[0]
+        return 'absspec.' + name + '.n' + str(self.nsamples) + '.' + self.time.strftime('%Y-%m-%d_%H-%M-%S') # + '.' + str(self.pid)
                     
     def write_spectrum(self, xunit, yunit, index=None):
         indexstr = ''

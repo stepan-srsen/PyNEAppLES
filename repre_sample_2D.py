@@ -239,7 +239,9 @@ class GeomReduction:
     def get_name(self):
         """Defines the basename for the generated files."""
 
-        return 'absspec.' + self.infile.split(".")[0] + '.n' + str(self.nsamples) + '.' + self.time.strftime('%Y-%m-%d_%H-%M-%S') # + '.' + str(self.pid)
+        bname = os.path.basename(self.infile)
+        name = bname.split(".")[0]
+        return 'absspec.' + name + '.n' + str(self.nsamples) + '.' + self.time.strftime('%Y-%m-%d_%H-%M-%S') # + '.' + str(self.pid)
 
         
     def get_PDF(self, samples=None, sweights=None, h='silverman', gen_grid=False):
