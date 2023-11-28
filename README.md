@@ -54,7 +54,7 @@ repre_sample_1D.py -n 1000 -N 5 -S 20 --mine 1.7 --maxe 5.4 -c 2000 -j 16 -J 32 
 
 The program expects the same input file as the `calc_spectrum_v2.py` program. The program then prints a file with the indices of the selected geometries (non-pythonic indexing, that is, 1st geometry has index 1) which can be further recalculated at a higher level of theory and processed with the `calc_spectrum_v2.py` script. The program also prints the full spectrum and the spectrum of the representative subset. Overall sample statistics of the optimization jobs such as divergences are written to the standard output, that is, to `output.txt` in the example above. The results of the individual optimization jobs are stored in a subfolder.
 
-The `repre_sample_2D.py` replaces this program as it should be in principle able to also perform optimization in 1D but it has not been properly tested for this use case.
+The `repre_sample_2D.py` program will replace this program as it should be in principle able to also perform optimization in 1D but it has not been properly tested for this use case. Note that while the optimization in 1D is in principle a bit less accurate, it is significantly faster.
 
 #### repre_sample_2D.py
 
