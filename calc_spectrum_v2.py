@@ -34,8 +34,8 @@ def read_cmd(parser=None, parse=True):
                         help='Number of samples.')
     parser.add_argument('-N', '--nstates', type=int, default=1,
                         help='Number of excited states (ground state not included).')
-    parser.add_argument('-d', '--de', type=float, default=0.01,
-                        help='Bin step in eV for histogramming or resolution for broadened spectra. Default = 0.01')
+    parser.add_argument('-d', '--de', type=float, default=0.005,
+                        help='Bin step in eV for histogramming or resolution for broadened spectra. Default = 0.005')
     parser.add_argument('-D', '--decompose', action="store_true", default=False,
                         help='Prints the spectrum for each state separately as well.')
     parser.add_argument('-s', '--sigma', type=float, default=0.0,
