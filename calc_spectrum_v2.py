@@ -340,7 +340,8 @@ class Spectrum:
         intensity = np.zeros((len(self.energies)))
         for i in samples:
             for j in range(self.nstates):
-                intensity[self.acs_indices[i,j]] += acs[i,j]
+                if self.acs_indices[i,j] >= 0 and self.acs_indices[i,j] < len(intensity):
+                    intensity[self.acs_indices[i,j]] += acs[i,j]
         return intensity
     
     def indices2states(self, samples=None):
